@@ -1,3 +1,5 @@
+import { CAT } from './rig'
+
 // Profondità e reattività al vento, per gruppo di layer.
 //
 // Il numero di gruppo viene dal prefisso messo nel PSD e definisce l'ordine di
@@ -61,7 +63,13 @@ export function isHidden(layer) {
 // È lo stesso meccanismo che servirà al rig del gatto (orecchie, coda, occhi
 // come sotto-piani imparentati) quando si arriverà alla Milestone 4.
 export const FOLLOWS = {
+  // Il logo è stampato sulla targa.
   '4-logo-insegna': '4-locale-tetto-insegna',
+  // Il gatto è poggiato sul ramo orizzontale: quando il ramo oscilla col
+  // vento deve inclinarsi con lui, non restare sospeso a mezz'aria.
+  [CAT.body]: '3-tronco-orizzontale',
+  [CAT.head]: '3-tronco-orizzontale',
+  [CAT.tail]: '3-tronco-orizzontale',
 }
 
 // Layer che non proiettano ombra, pur avendo una profondità.

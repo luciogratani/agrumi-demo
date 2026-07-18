@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import manifest from './manifest.json'
 import { castsShadow, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
-import Sprite from './Sprite.jsx'
+import Sprite, { computeGeom } from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
 import PivotEditor from './PivotEditor.jsx'
@@ -77,21 +77,14 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
     }
   }, [textures])
 
-  // I layer solidali non vengono disegnati da soli: finiscono dentro il gruppo
-  // del padre, che ne detta pivot, vento e parallasse.
-  const attachments = new Map()
+  // I layer solidali diventano figli nell'albero della scena, non voci a sé:
+  // così ereditano vento, parallasse e profondità del padre e restano
+  // ancorati, ma conservano perno e animazioni proprie.
+  const kids = new Map()
   manifest.layers.forEach((layer, i) => {
     const parent = FOLLOWS[layer.slug]
     if (!parent) return
-    const list = attachments.get(parent) ?? []
-    list.push({
-      layer,
-      texture: textures[i],
-      order: i,
-      scale: scaleFor(layer),
-      castsShadow: castsShadow(layer),
-    })
-    attachments.set(parent, list)
+    kids.set(parent, [...(kids.get(parent) ?? []), { layer, index: i }])
   })
 
   // La testa a occhi chiusi ha lo stesso bounding box della testa aperta,
@@ -99,12 +92,14 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
   // in più da sovrapporre.
   const blinkTexture = textures[manifest.layers.findIndex((l) => l.slug === CAT.blink)]
 
-  return manifest.layers.map((layer, i) => {
-    if (FOLLOWS[layer.slug] || isHidden(layer)) return null
+  const render = (layer, i, parentPivot) => {
+    if (isHidden(layer)) return null
 
     // `0-sfondo` è la composizione appiattita: si mostra solo come riferimento
     // e non proietta ombra (le sue sono già cotte dentro).
     if (layer.slug === '0-sfondo' && !scene.showFlat) return null
+
+    const geom = computeGeom(layer, WORLD, scaleFor(layer), pivotFor(layer))
 
     return (
       <Sprite
@@ -119,16 +114,20 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
         zSpread={zSpread}
         shadow={castsShadow(layer) ? shadow : { ...shadow, enabled: false }}
         scale={scaleFor(layer)}
-        attached={attachments.get(layer.slug)}
         pivot={pivotFor(layer.slug)}
+        parentPivot={parentPivot}
         breathe={layer.slug === CAT.body ? cat.breathe : undefined}
         track={layer.slug === CAT.head ? { ...cat.track, pointer } : undefined}
         idle={layer.slug === CAT.head ? cat.idle : undefined}
         bend={layer.slug === CAT.tail ? cat.tail : undefined}
         blink={layer.slug === CAT.head ? { ...cat.blink, texture: blinkTexture } : undefined}
-      />
+      >
+        {(kids.get(layer.slug) ?? []).map((k) => render(k.layer, k.index, geom))}
+      </Sprite>
     )
-  })
+  }
+
+  return manifest.layers.map((layer, i) => (FOLLOWS[layer.slug] ? null : render(layer, i)))
 }
 
 // Puntatore su desktop, giroscopio su mobile. Il valore è normalizzato in

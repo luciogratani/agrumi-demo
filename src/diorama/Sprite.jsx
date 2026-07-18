@@ -10,7 +10,7 @@ import { createBendMaterial } from './bend'
 // coordinate tela normalizzate) è il punto attorno a cui il layer ruota: senza,
 // si usa il bordo inferiore, che va bene per una foglia attaccata a un ramo ma
 // non per la testa di un gatto, che deve girare attorno alla base del collo.
-function computeGeom(layer, world, scale, pivot) {
+export function computeGeom(layer, world, scale, pivot) {
   const w = layer.w * world.w * scale
   const h = layer.h * world.h * scale
   // Centro dell'immagine (origine al centro della tela, Y verso l'alto).
@@ -85,9 +85,11 @@ function Planes({ geom, texture, order, shadowOffset, castsShadow, toShadowLayer
 // trasformazioni (vento, parallasse, respiro, inseguimento); la mesh dentro è
 // spostata in modo che la sua immagine cada al posto giusto.
 //
-// `attached` sono layer solidali (per esempio il logo stampato sull'insegna):
-// stanno dentro lo stesso gruppo, quindi condividono perno e movimenti invece
-// di animarsi per conto proprio.
+// Gli Sprite si annidano: un layer solidale a un altro (il logo stampato sulla
+// targa, il gatto poggiato sul ramo) viene reso *dentro* il gruppo del padre e
+// ne eredita quindi vento, parallasse e profondità. Continua però ad avere
+// perno e animazioni proprie — il gatto respira e muove la testa mentre il ramo
+// su cui sta lo fa oscillare.
 export default function Sprite({
   layer,
   texture,
@@ -100,7 +102,8 @@ export default function Sprite({
   shadow,
   scale,
   pivot,
-  attached = [],
+  parentPivot,
+  children,
   breathe,
   track,
   idle,
@@ -150,15 +153,11 @@ export default function Sprite({
     }
   }, [bendMats, geom])
 
-  // Geometrie dei solidali, espresse rispetto al perno del padre.
-  const children = useMemo(
-    () =>
-      attached.map((a) => {
-        const g = computeGeom(a.layer, world, a.scale)
-        return { ...a, geom: { ...g, localX: g.cx - geom.px, localY: g.cy - geom.py } }
-      }),
-    [attached, world, geom],
-  )
+  // Annidato: la posizione è relativa al perno del padre, e vento, parallasse
+  // e profondità arrivano da lui — riapplicarli qui li conterebbe due volte.
+  const nested = Boolean(parentPivot)
+  const baseX = nested ? geom.px - parentPivot.px : geom.px
+  const baseY = nested ? geom.py - parentPivot.py : geom.py
 
   // Stato dell'inseguimento e del blink fra un fotogramma e l'altro.
   const state = useRef({
@@ -180,7 +179,7 @@ export default function Sprite({
 
     let rotation = 0
 
-    if (wind.enabled && traits.wind > 0) {
+    if (!nested && wind.enabled && traits.wind > 0) {
       // Folata lenta che modula tutto: "il vento respira".
       const gust = 0.6 + 0.4 * Math.sin(t * wind.gustSpeed + phase * 0.3)
       // Due seni a rapporto irrazionale: il ciclo non si ripete mai uguale.
@@ -221,13 +220,13 @@ export default function Sprite({
 
     // Parallasse: i piani vicini si spostano di più. In ortografica la Z non
     // dà profondità, quindi lo scarto è tutto su X/Y.
-    if (parallax.enabled) {
+    if (!nested && parallax.enabled) {
       const amt = traits.depth * parallax.strength
-      g.position.x = geom.px + parallax.value.current.x * amt * world.w
-      g.position.y = geom.py + parallax.value.current.y * amt * world.h
+      g.position.x = baseX + parallax.value.current.x * amt * world.w
+      g.position.y = baseY + parallax.value.current.y * amt * world.h
     } else {
-      g.position.x = geom.px
-      g.position.y = geom.py
+      g.position.x = baseX
+      g.position.y = baseY
     }
 
     // Respiro: il perno è in basso, quindi il torace si allarga verso l'alto e
@@ -268,11 +267,11 @@ export default function Sprite({
     // Solo per ispezionare il diorama con l'orbit control: l'ordine di disegno
     // resta dato da renderOrder (depthTest è off), quindi la Z non cambia nulla
     // visto di fronte.
-    g.position.z = traits.depth * zSpread
+    if (!nested) g.position.z = traits.depth * zSpread
   })
 
   return (
-    <group ref={group} position={[geom.px, geom.py, 0]}>
+    <group ref={group} position={[baseX, baseY, 0]}>
       <Planes
         geom={geom}
         texture={texture}
@@ -285,17 +284,7 @@ export default function Sprite({
         meshRef={headMesh}
       />
 
-      {children.map((c) => (
-        <Planes
-          key={c.layer.slug}
-          geom={c.geom}
-          texture={c.texture}
-          order={c.order}
-          shadowOffset={shadowOffset}
-          castsShadow={shadow.enabled && lift > 0 && c.castsShadow}
-          toShadowLayer={toShadowLayer}
-        />
-      ))}
+      {children}
     </group>
   )
 }
