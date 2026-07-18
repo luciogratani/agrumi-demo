@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -8,6 +8,8 @@ import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
+import PivotEditor from './PivotEditor.jsx'
+import { CAT, PIVOTS, pivotFor } from './rig'
 
 // Mondo in unità normalizzate: altezza tela = 1, larghezza = aspect del PSD.
 const WORLD = { w: manifest.canvas.aspect, h: 1 }
@@ -55,7 +57,11 @@ function CameraRig({ orbit, resetView }) {
   )
 }
 
-function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
+function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
+  // Puntatore normalizzato sul canvas, gia' mantenuto aggiornato da R3F.
+  // Vale solo mentre il puntatore e' sulla scena: il gatto guarda chi lo
+  // guarda, e smette quando ci si allontana.
+  const pointer = useThree((s) => s.pointer)
   const urls = manifest.layers.map((l) => `${import.meta.env.BASE_URL}${l.src}`)
   const textures = useLoader(THREE.TextureLoader, urls)
 
@@ -88,6 +94,11 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
     attachments.set(parent, list)
   })
 
+  // La testa a occhi chiusi ha lo stesso bounding box della testa aperta,
+  // quindi il blink è uno scambio di texture sulla stessa mesh, non un layer
+  // in più da sovrapporre.
+  const blinkTexture = textures[manifest.layers.findIndex((l) => l.slug === CAT.blink)]
+
   return manifest.layers.map((layer, i) => {
     if (FOLLOWS[layer.slug] || isHidden(layer)) return null
 
@@ -109,6 +120,12 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
         shadow={castsShadow(layer) ? shadow : { ...shadow, enabled: false }}
         scale={scaleFor(layer)}
         attached={attachments.get(layer.slug)}
+        pivot={pivotFor(layer.slug)}
+        breathe={layer.slug === CAT.body ? cat.breathe : undefined}
+        track={layer.slug === CAT.head ? { ...cat.track, pointer } : undefined}
+        idle={layer.slug === CAT.head ? cat.idle : undefined}
+        bend={layer.slug === CAT.tail ? cat.tail : undefined}
+        blink={layer.slug === CAT.head ? { ...cat.blink, texture: blinkTexture } : undefined}
       />
     )
   })
@@ -183,7 +200,15 @@ function useParallaxInput({ enabled, lerp, gyro }) {
 
 export default function Diorama() {
   const resetView = useRef(null)
-  const { viewport, camera, scene, shadow, parallax, wind, traits } = useDioramaControls(resetView)
+
+  // I perni si modificano cliccando sulla scena; il ref serve al bottone di
+  // export del pannello, che legge lo stato corrente al momento del clic.
+  const [pivots, setPivots] = useState(PIVOTS)
+  const rig = useRef({ pivots })
+  rig.current.pivots = pivots
+
+  const { viewport, cat, camera, scene, shadow, parallax, wind, traits } =
+    useDioramaControls(resetView, rig)
   const value = useParallaxInput(parallax)
 
   const device = DEVICES[viewport.device]
@@ -223,6 +248,44 @@ export default function Diorama() {
                 zSpread={camera.zSpread}
                 scene={scene}
                 shadow={shadow}
+                cat={{
+                  breathe: {
+                    enabled: cat.breathe,
+                    amp: cat.breatheAmp,
+                    period: cat.breathePeriod,
+                  },
+                  idle: {
+                    enabled: cat.idle,
+                    maxDeg: cat.idleMaxDeg,
+                    holdMin: cat.idleHoldMin,
+                    holdMax: cat.idleHoldMax,
+                    speed: cat.idleSpeed,
+                  },
+                  track: {
+                    enabled: cat.track,
+                    maxDeg: cat.trackMaxDeg,
+                    deadzone: cat.trackDeadzone,
+                    lerp: cat.trackLerp,
+                  },
+                  tail: {
+                    enabled: cat.tail,
+                    amp: cat.tailAmp,
+                    freq: cat.tailFreq,
+                    lag: cat.tailLag,
+                  },
+                  blink: {
+                    enabled: cat.blink,
+                    min: cat.blinkMin,
+                    max: cat.blinkMax,
+                  },
+                }}
+              />
+              <PivotEditor
+                world={WORLD}
+                pivots={pivots}
+                part={cat.part}
+                active={cat.editPivots}
+                onSet={(slug, pivot) => setPivots((p) => ({ ...p, [slug]: pivot }))}
               />
             </Suspense>
           </Canvas>
