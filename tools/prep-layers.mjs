@@ -10,7 +10,11 @@ import { readdir, mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
 
-const SRC = '/Users/lucio/Desktop/agrumi/scena 3d/layer da gen 1 - 2'
+const SRC = '/Users/lucio/Desktop/agrumi/scena 3d/layer da gen 1 - 3'
+
+// Livelli rimasti nel PSD ma sostituiti: il gatto intero ha lasciato il posto
+// ai pezzi separati (corpo, testa, coda) del rig.
+const SKIP = [/gatto-full/i]
 const OUT = path.resolve(process.cwd(), 'public/layers')
 
 // Tela di riferimento in uscita. 1440 di larghezza = retina su mobile.
@@ -57,24 +61,39 @@ for (const name of files) {
   const outW = Math.max(1, Math.round(box.width * scale))
   const outH = Math.max(1, Math.round(box.height * scale))
 
-  // Il nome Photoshop è `hero_<indici>_<prefisso numerico>-<nome>`.
-  // Il prefisso numerico è quello messo a mano nel PSD (0 sfondo, 1 albero,
-  // ... 5 foglie davanti) ed è la fonte affidabile per l'ordine Z; gli indici
-  // dell'exporter servono solo a ordinare dentro lo stesso prefisso.
+  // Il nome dell'export è `<prefisso qualunque>_<indici>_<numero PSD>-<nome>`.
+  // Il prefisso iniziale lo decide Photoshop e cambia a ogni sessione, quindi
+  // non ci si fa affidamento: si cerca la catena di indici, che è l'unica
+  // parte con forma fissa.
+  //
+  // Il numero messo a mano nel PSD (0 sfondo, 1 albero, ... 5 foglie davanti,
+  // e 3.1.0 ... 3.1.3 per i pezzi del gatto) è la fonte affidabile per
+  // l'ordine Z; gli indici dell'exporter ordinano dentro lo stesso numero.
   const raw = name.replace(/\.png$/, '')
-  const [, indices = '', label = raw] = raw.match(/^hero_((?:\d+s?_)+)(.*)$/) ?? []
-  const idx = indices.replace(/[^0-9]/g, '')
-  const group = label.match(/^(\d+(?:\.\d+)?)-/)?.[1]
+  const [, indices = '', label = raw] = raw.match(/_((?:\d+s?_)+)(.*)$/) ?? []
+  // Gli indici restano una lista di numeri e non una cifra unica concatenata:
+  // il prefisso di Photoshop può contenere numeri (`..._step_3_...`) e la
+  // concatenazione supererebbe la precisione degli interi, mandando in
+  // pattume l'ordinamento.
+  const idx = indices.split('_').filter(Boolean).map((t) => parseInt(t, 10))
+  const group = label.match(/^(\d+(?:\.\d+)*)-/)?.[1]
 
   if (!group) {
-    console.warn(`  ${label}: senza prefisso numerico (livello nascosto?), saltato`)
+    console.warn(`  ${label}: senza numero di livello (nascosto o di servizio), saltato`)
     continue
   }
 
-  // Nel PSD alcuni livelli condividono lo stesso nome (due "5 foglia"):
-  // senza suffisso si sovrascriverebbero a vicenda.
+  if (SKIP.some((re) => re.test(label))) {
+    console.warn(`  ${label}: sostituito da altri livelli, saltato`)
+    continue
+  }
+
+  // Nome file: niente punti (scomodi in un nome file) e niente caratteri
+  // fuori da [a-z0-9-]. Il numero resta in testa, così i file si leggono
+  // nell'ordine in cui vengono disegnati.
   const base = label
-    .replace(/[^a-zA-Z0-9.]+/g, '-')
+    .replace(/\./g, '-')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .toLowerCase()
 
@@ -93,8 +112,11 @@ for (const name of files) {
 
   layers.push({
     slug,
-    group: parseFloat(group),
-    idx: parseInt(idx || '0', 10),
+    group,
+    // Il numero del PSD scomposto per l'ordinamento: `3.1.2` non è un numero
+    // (parseFloat lo troncherebbe a 3.1, appiattendo i pezzi del gatto).
+    sort: group.split('.').map(Number),
+    idx,
     src: `layers/${outFile}`,
     // Posizione e dimensione normalizzate sulla tela originale (0..1).
     // Sono ciò che rimette ogni sprite esattamente dov'era in Photoshop.
@@ -112,19 +134,29 @@ for (const name of files) {
 // Muro di fondo: foglio di carta pulito, senza il diorama cotto dentro.
 // Sostituisce `0-sfondo` (che è la composizione finale appiattita e quindi
 // blocca la parallasse, avendo tutto già al suo posto).
-const WALL_SRC = path.resolve(process.cwd(), 'public/assets/el/cielo.png')
+const wallName = files.find((f) => /sfondo-nuovo/i.test(f))
+if (!wallName) throw new Error('manca il livello `sfondo nuovo` fra gli export')
+const WALL_SRC = path.join(SRC, wallName)
 // Risoluzione più bassa degli sprite: è grana di carta uniforme, senza
 // dettaglio da preservare, e il rumore fine è ciò che gonfia il WebP.
 const wall = await sharp(WALL_SRC)
   .resize(900, null)
   .webp({ quality: 68, effort: 6 })
   .toFile(path.join(OUT, 'backdrop-muro.webp'))
-console.log(`  backdrop-muro                da cielo.png — ${(wall.size / 1024).toFixed(0)} kB`)
+console.log(`  backdrop-muro                da ${wallName.slice(0, 40)} — ${(wall.size / 1024).toFixed(0)} kB`)
 
-// Ordine Z, dal fondo verso la camera: prima il prefisso del PSD, poi
-// l'indice dell'exporter al contrario (che numera dall'alto dello stack,
-// quindi indice più alto = più indietro).
-layers.sort((a, b) => a.group - b.group || b.idx - a.idx)
+// Ordine Z, dal fondo verso la camera: prima il numero del PSD confrontato
+// componente per componente, poi l'indice dell'exporter al contrario (che
+// numera dall'alto dello stack, quindi indice più alto = più indietro).
+const compare = (x, y, sign) => {
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const diff = ((x[i] ?? 0) - (y[i] ?? 0)) * sign
+    if (diff) return diff
+  }
+  return 0
+}
+
+layers.sort((a, b) => compare(a.sort, b.sort, 1) || compare(a.idx, b.idx, -1))
 
 // Le immagini stanno in public/ (servite così come sono), il manifest in src/
 // perché viene importato dal bundle: Vite avverte se si importa da public/.

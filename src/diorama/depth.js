@@ -45,6 +45,14 @@ export function scaleFor(layer) {
   return SCALE[layer.slug] ?? 1
 }
 
+// Layer presenti negli export ma non visibili di partenza: la testa a occhi
+// chiusi è il fotogramma del blink, la mostra il rig del gatto quando serve.
+export const HIDDEN = [/occhi-chiusi/]
+
+export function isHidden(layer) {
+  return HIDDEN.some((re) => re.test(layer.slug))
+}
+
 // Layer solidali a un altro: vengono disegnati dentro il gruppo del padre,
 // quindi ne ereditano pivot, rotazione del vento e scarto di parallasse.
 // Senza questo ogni layer avrebbe una fase casuale propria e il logo

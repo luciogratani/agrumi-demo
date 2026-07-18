@@ -3,7 +3,7 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import manifest from './manifest.json'
-import { castsShadow, FOLLOWS, groupKeyFor, scaleFor } from './depth'
+import { castsShadow, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
@@ -89,7 +89,7 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
   })
 
   return manifest.layers.map((layer, i) => {
-    if (FOLLOWS[layer.slug]) return null
+    if (FOLLOWS[layer.slug] || isHidden(layer)) return null
 
     // `0-sfondo` è la composizione appiattita: si mostra solo come riferimento
     // e non proietta ombra (le sue sono già cotte dentro).

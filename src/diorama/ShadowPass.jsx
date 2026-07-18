@@ -21,11 +21,13 @@ import * as THREE from 'three'
 //
 // Le sagome restano figlie dei rispettivi pivot e continuano quindi a seguire
 // vento e parallasse; si separano dal resto della scena con i layer di three.js.
+//
+// La risoluzione del buffer è regolabile (piena, metà, un quarto) per poter
+// confrontare qualità e costo: a un quarto la riduzione stessa fa parte della
+// sfocatura, quindi costa meno E risulta più liscia, ma perde i dettagli fini
+// delle sagome.
 
 export const SHADOW_LAYER = 1
-
-// Un quarto per lato = un sedicesimo dei pixel da sfocare.
-const RT_SCALE = 0.25
 
 const fullscreenVertex = /* glsl */ `
   varying vec2 vUv;
@@ -71,8 +73,8 @@ const compositeFragment = /* glsl */ `
 export default function ShadowPass({ shadow, world }) {
   const { gl, scene, camera, size } = useThree()
 
-  const rtW = Math.max(1, Math.round(size.width * RT_SCALE))
-  const rtH = Math.max(1, Math.round(size.height * RT_SCALE))
+  const rtW = Math.max(1, Math.round(size.width * shadow.resolution))
+  const rtH = Math.max(1, Math.round(size.height * shadow.resolution))
 
   const settings = { type: THREE.UnsignedByteType, depthBuffer: false, stencilBuffer: false }
   const rtA = useFBO(rtW, rtH, settings)
@@ -133,18 +135,31 @@ export default function ShadowPass({ shadow, world }) {
       gl.render(scene, camera)
       scene.background = background
 
-      // 2. Sfocatura in due passate. Il raggio è in pixel del buffer, che è a
-      //    un quarto: un raggio 4 qui vale 16 pixel a schermo.
-      const r = shadow.blur
-      blur.material.uniforms.uMap.value = rtA.texture
-      blur.material.uniforms.uStep.value.set(r / rtW, 0)
-      gl.setRenderTarget(rtB)
-      gl.render(blur.scene, blur.camera)
+      // 2. Sfocatura: orizzontale e verticale, ripetute `iterations` volte.
+      //
+      //    Il raggio arriva in pixel a schermo e va convertito in pixel del
+      //    buffer, così cambiando risoluzione la sfocatura resta la stessa e
+      //    si confronta la qualità invece dell'entità.
+      //
+      //    Le varianze delle gaussiane si sommano, quindi ogni passata usa un
+      //    raggio diviso per la radice del numero di passate: il risultato
+      //    finale ha lo stesso raggio, solo più liscio. Serve alle risoluzioni
+      //    alte, dove i 9 campioni sono troppo radi per un raggio ampio e la
+      //    struttura del kernel torna a vedersi.
+      const n = shadow.iterations
+      const r = ((shadow.blur * shadow.resolution) / 4) / Math.sqrt(n)
 
-      blur.material.uniforms.uMap.value = rtB.texture
-      blur.material.uniforms.uStep.value.set(0, r / rtH)
-      gl.setRenderTarget(rtA)
-      gl.render(blur.scene, blur.camera)
+      for (let i = 0; i < n; i++) {
+        blur.material.uniforms.uMap.value = rtA.texture
+        blur.material.uniforms.uStep.value.set(r / rtW, 0)
+        gl.setRenderTarget(rtB)
+        gl.render(blur.scene, blur.camera)
+
+        blur.material.uniforms.uMap.value = rtB.texture
+        blur.material.uniforms.uStep.value.set(0, r / rtH)
+        gl.setRenderTarget(rtA)
+        gl.render(blur.scene, blur.camera)
+      }
     }
 
     // 3. La scena vera, col piano di composizione che legge il buffer.

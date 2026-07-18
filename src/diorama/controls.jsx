@@ -70,9 +70,21 @@ export function useDioramaControls(resetView) {
     enabled: { value: true, label: 'attiva' },
     angle: { value: 214, min: 0, max: 360, step: 1, label: 'direzione (°)' },
     distance: { value: 0.068, min: 0, max: 0.2, step: 0.001, label: 'distanza' },
-    // In pixel del buffer, che sta a un quarto della risoluzione a schermo:
-    // il valore vale quindi quattro volte tanto sul risultato finale.
-    blur: { value: 0.75, min: 0, max: 16, step: 0.05, label: 'sfocatura' },
+    // Risoluzione del buffer in cui le ombre vengono disegnate e sfocate.
+    // Un quarto è quella usata finora: costa un sedicesimo dei pixel e la
+    // riduzione stessa fa parte della sfocatura. Le altre servono a confronto.
+    resolution: {
+      value: 0.25,
+      options: { 'Piena': 1, 'Metà': 0.5, 'Un quarto': 0.25 },
+      label: 'risoluzione',
+    },
+    // In pixel a schermo, non del buffer: cambiando risoluzione la sfocatura
+    // resta la stessa e si confronta solo la qualità, non l'entità.
+    blur: { value: 12, min: 0, max: 64, step: 0.5, label: 'sfocatura (px)' },
+    // Ogni passata allarga il raggio senza aggiungere campioni. A risoluzione
+    // piena serve alzarle, perché con pochi campioni su un raggio ampio
+    // ricompare la struttura del kernel.
+    iterations: { value: 1, min: 1, max: 4, step: 1, label: 'passate' },
     opacity: { value: 0.54, min: 0, max: 1, step: 0.01, label: 'opacità' },
     color: { value: '#000000', label: 'colore' },
   })
