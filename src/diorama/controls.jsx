@@ -144,7 +144,7 @@ export function useDioramaControls(resetView, rig) {
     // I parametri sono quelli tarati, ma il vento parte spento: la scena ferma
     // è il riferimento per giudicare allineamento e composizione.
     enabled: { value: false, label: 'attiva' },
-    amp: { value: 0.85, min: 0, max: 3, step: 0.05, label: 'ampiezza' },
+    amp: { value: 1.2, min: 0, max: 3, step: 0.05, label: 'ampiezza' },
     ampA: { value: 0.03, min: 0, max: 0.12, step: 0.001, label: 'ampiezza A' },
     ampB: { value: 0.012, min: 0, max: 0.12, step: 0.001, label: 'ampiezza B' },
     speedA: { value: 1.3, min: 0.05, max: 3, step: 0.01, label: 'frequenza A' },

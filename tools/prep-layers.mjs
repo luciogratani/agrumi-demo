@@ -167,3 +167,35 @@ await writeFile(
 )
 
 console.log(`\n${layers.length} layer — ${(totalBytes / 1024 / 1024).toFixed(1)} MB totali`)
+
+// --- Asset di interfaccia --------------------------------------------------
+//
+// Non fanno parte del diorama: stanno nel DOM sopra il canvas. Il limone è lo
+// sfondo del bottone di prenotazione, quindi è un elemento essenziale del sito
+// e viene esportato anche in PNG: se per qualsiasi motivo il WebP non venisse
+// servito, la CTA deve comparire lo stesso.
+//
+// Ritagliato al bounding box alpha perché il riquadro del bottone coincida con
+// il limone e non con la tela trasparente attorno.
+const UI_OUT = path.resolve(process.cwd(), 'public/ui')
+await mkdir(UI_OUT, { recursive: true })
+
+const CTA_SRC = path.resolve(process.cwd(), 'public/assets/el/limone.png')
+const ctaBox = await alphaBBox(CTA_SRC)
+// 512 px bastano: il bottone sta sotto i 200 px CSS, quindi copre anche i
+// display a DPR 3 senza sprecare banda su grana di carta che nessuno vedrà.
+const CTA_W = 512
+
+const cta = sharp(CTA_SRC)
+  .extract({ left: ctaBox.left, top: ctaBox.top, width: ctaBox.width, height: ctaBox.height })
+  .resize(CTA_W)
+
+const ctaWebp = await cta.clone().webp({ quality: 80, alphaQuality: 100, effort: 6 }).toFile(path.join(UI_OUT, 'cta-limone.webp'))
+const ctaPng = await cta.clone()// Il PNG serve solo se il WebP non arriva: con la palette pesa un sesto e
+// la perdita su una sagoma piatta è invisibile.
+  .png({ compressionLevel: 9, palette: true, colours: 128 }).toFile(path.join(UI_OUT, 'cta-limone.png'))
+
+console.log(
+  `\nUI · cta-limone ${ctaWebp.width}x${ctaWebp.height} — ` +
+    `webp ${(ctaWebp.size / 1024).toFixed(0)} kB, png ${(ctaPng.size / 1024).toFixed(0)} kB`,
+)

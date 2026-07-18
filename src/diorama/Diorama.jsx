@@ -9,6 +9,7 @@ import Sprite, { computeGeom } from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
 import PivotEditor from './PivotEditor.jsx'
+import Cta from './Cta.jsx'
 import { CAT, PIVOTS, pivotFor } from './rig'
 
 // Mondo in unità normalizzate: altezza tela = 1, larghezza = aspect del PSD.
@@ -288,6 +289,7 @@ export default function Diorama() {
               />
             </Suspense>
           </Canvas>
+          <Cta />
         </div>
       </div>
     </>
