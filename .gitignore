@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+
+# Sorgenti pesanti degli asset: i PNG originali stanno fuori dal repo
+# (in `scena 3d/`) e ciò che serve alla scena è rigenerabile con
+# `node tools/prep-layers.mjs`.
+asset-lavoro/raw/
