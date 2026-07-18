@@ -20,10 +20,28 @@ Finché il mood c'è, va speso su ciò che solo il mood può produrre.
 I tre punti sono un blocco unico e vanno in quest'ordine. Alla fine c'è una
 hero **completa e mostrabile**, non un punto intermedio.
 
+### 1.0 Transizione fra scene (prototipo fatto)
+
+Non era in piano: è arrivata prima perché definisce il **contenitore** in cui
+tutto il resto dovrà vivere. Il diorama scorre in verticale fra tre stati (menu
+· hero · booking), guidato dal gesto. Come funziona: `SCENA-3D.md` §7.
+
+Cosa manca per dirla finita:
+
+- le destinazioni sono segnaposto — diventano reali col §2.1;
+- il gesto è **discreto**: si supera la soglia e parte tutto. Trascinare il
+  diorama seguendo il dito, con snap al rilascio, sarebbe più ricco, ma ha
+  senso solo dopo aver stabilito che il movimento in sé convince;
+- durata a 2 s: giusta per valutare, probabilmente lunga per una navigazione
+  ripetuta. È il primo numero da rivedere quando diventa il gesto vero.
+
 ### 1.1 CTA della hero
 
 Per prima perché è corta e perché **sblocca le altre due**: l'animazione di
 ingresso deve sapere che la CTA esiste, altrimenti va rifatta.
+
+> **Stato:** `Cta.jsx` è stato **rimosso**, la CTA è da rifare. Le ragioni di
+> progetto della prima versione sono conservate in `SCENA-3D.md` §6.
 
 - HTML/SVG **sopra** il canvas, non una mesh 3D (vincolo del CLAUDE.md)
 - forma di limone, scritta con font vettoriale
@@ -59,6 +77,10 @@ applicato a caso, ma il gesto proprio del materiale.
 - la camera è **ortografica**: nessuna prospettiva, quindi il movimento può
   essere solo zoom e scorrimento. Meno cinematografico, più coerente
 - deve concludersi con la CTA che arriva per ultima
+
+Ora costa molto meno: con la §1.0 fatta, l'intro è **una posa in più nello
+stesso sistema** invece che un meccanismo a sé. Se si scrive a parte, si
+riscrive.
 
 ---
 
@@ -157,5 +179,7 @@ Hero su route `#/diorama2`; la home è volutamente vuota.
 - **Rig gatto**: perni espliciti, respiro, idle autonomo della testa, coda
   piegata sui vertici, blink a scambio di texture. Il gatto è figlio del ramo,
   quindi oscilla con lui.
+- **Transizione** (GSAP): tre stati in verticale, corsa d'uscita per gruppo
+  tarata, gesti wheel/swipe, destinazioni segnaposto.
 - **Pannello di regia** (leva): tutti i parametri, export JSON, anteprima in
   cornice di viewport mobile reale, editor dei perni.

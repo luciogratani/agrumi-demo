@@ -9,7 +9,9 @@ import Sprite, { computeGeom } from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
 import PivotEditor from './PivotEditor.jsx'
-import Cta from './Cta.jsx'
+import Destinations from './Destinations.jsx'
+import { useSceneTransition } from './transition'
+import { useSceneGestures } from './gestures'
 import { CAT, PIVOTS, pivotFor } from './rig'
 
 // Mondo in unità normalizzate: altezza tela = 1, larghezza = aspect del PSD.
@@ -58,7 +60,7 @@ function CameraRig({ orbit, resetView }) {
   )
 }
 
-function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
+function Layers({ parallax, transition, wind, traits, zSpread, scene, shadow, cat }) {
   // Puntatore normalizzato sul canvas, gia' mantenuto aggiornato da R3F.
   // Vale solo mentre il puntatore e' sulla scena: il gatto guarda chi lo
   // guarda, e smette quando ci si allontana.
@@ -111,6 +113,7 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow, cat }) {
         world={WORLD}
         order={i}
         parallax={parallax}
+        transition={transition}
         wind={wind}
         zSpread={zSpread}
         shadow={castsShadow(layer) ? shadow : { ...shadow, enabled: false }}
@@ -207,9 +210,29 @@ export default function Diorama() {
   const rig = useRef({ pivots })
   rig.current.pivots = pivots
 
-  const { viewport, cat, camera, scene, shadow, parallax, wind, traits } =
-    useDioramaControls(resetView, rig)
+  // I bottoni del pannello chiamano attraverso questo ref: l'animazione ha
+  // bisogno di durata ed ease che il pannello stesso produce, e leggerli
+  // direttamente creerebbe un ciclo. Al primo clic il ref è già popolato.
+  const transitionActions = useRef(null)
+
+  const { viewport, cat, camera, scene, shadow, parallax, wind, traits, transition } =
+    useDioramaControls(resetView, rig, transitionActions)
   const value = useParallaxInput(parallax)
+  const { value: transitionValue, api: transitionApi } = useSceneTransition(transition)
+  transitionActions.current = transitionApi
+
+  // I gesti si spengono quando la scena serve ad altro: con l'orbit control il
+  // trascinamento è della camera, e in modifica perni il clic piazza un perno.
+  const frame = useRef(null)
+  useSceneGestures(
+    frame,
+    {
+      enabled: transition.gestures && !camera.orbit && !cat.editPivots,
+      invert: transition.invert,
+      threshold: transition.threshold,
+    },
+    transitionActions,
+  )
 
   const device = DEVICES[viewport.device]
 
@@ -220,6 +243,7 @@ export default function Diorama() {
 
       <div className="diorama-stage">
         <div
+          ref={frame}
           className="diorama-frame"
           data-full={!device}
           // Dimensioni reali in CSS px; il CSS le rimpicciolisce solo se non
@@ -243,6 +267,7 @@ export default function Diorama() {
               />
               <Layers
                 parallax={{ ...parallax, value }}
+                transition={{ value: transitionValue, strength: transition.strength }}
                 wind={wind}
                 traits={traits}
                 zSpread={camera.zSpread}
@@ -289,7 +314,8 @@ export default function Diorama() {
               />
             </Suspense>
           </Canvas>
-          <Cta />
+
+          <Destinations actions={transitionActions} />
         </div>
       </div>
     </>

@@ -12,17 +12,34 @@ import { CAT } from './rig'
 
 // depth: 0 = fondale immobile, 1 = piano più vicino alla camera.
 // wind: quanto il gruppo reagisce al vento (0 = fermo).
+// exit: quanto il gruppo scorre nella transizione fra scene (vedi sotto).
+//
+// `exit` è una tabella separata da `depth` di proposito: sono due regie
+// diverse, e infatti i valori tarati non si somigliano affatto. La parallasse
+// è uno scarto di pochi punti percentuali, dove il rapporto fra i gruppi si
+// legge come profondità; la transizione è una corsa di quasi due altezze di
+// schermo, dove lo stesso rapporto diventa la velocità con cui un pezzo esce
+// dall'inquadratura.
+//
+// Il differenziale non segue la distanza dalla camera ma **l'ordine in cui le
+// cose devono sparire**: il cielo e il locale corrono più del frame (1.39 e
+// 1.19) e se ne vanno per primi, le foglie davanti e quelle di 3.2 restano
+// indietro (0.69 e 0.65) e sono le ultime a lasciare lo schermo. È questo
+// sfalsamento a far leggere il movimento come un diorama che si smonta invece
+// che come un'immagine che scorre.
+//
+// Il fondale resta a 0: è il muro dietro, non si muove mai.
 export const GROUPS = {
-  sfondo: { label: '0 · sfondo', depth: 0.0, wind: 0.0 },
-  cielo: { label: '· nuvole e uccelli', depth: 0.55, wind: 0.15 },
-  albero: { label: '1 · albero', depth: 0.21, wind: 0.25 },
-  tronchetto: { label: '2 · tronchetto', depth: 0.3, wind: 0.35 },
-  tronco: { label: '3 · tronco orizz.', depth: 0.24, wind: 0.4 },
-  g31: { label: '3.1 · foglie e limoni', depth: 0.85, wind: 0.8 },
-  gatto: { label: '3.1 · gatto', depth: 0.48, wind: 0.0 },
-  g32: { label: '3.2 · foglie e limoni', depth: 0.4, wind: 0.9 },
-  locale: { label: '4 · locale e insegna', depth: 0.44, wind: 0.3 },
-  g5: { label: '5 · foglie davanti', depth: 0.37, wind: 1.0 },
+  sfondo: { label: '0 · sfondo', depth: 0.0, wind: 0.0, exit: 0.0 },
+  cielo: { label: '· nuvole e uccelli', depth: 1.0, wind: 0.15, exit: 1.39 },
+  albero: { label: '1 · albero', depth: 0.32, wind: 0.25, exit: 0.77 },
+  tronchetto: { label: '2 · tronchetto', depth: 0.32, wind: 0.35, exit: 1.06 },
+  tronco: { label: '3 · tronco orizz.', depth: 0.18, wind: 0.4, exit: 1.0 },
+  g31: { label: '3.1 · foglie e limoni', depth: 0.68, wind: 0.8, exit: 0.95 },
+  gatto: { label: '3.1 · gatto', depth: 0.23, wind: 0.0, exit: 0.86 },
+  g32: { label: '3.2 · foglie e limoni', depth: 0.53, wind: 0.9, exit: 0.65 },
+  locale: { label: '4 · locale e insegna', depth: 0.46, wind: 0.3, exit: 1.19 },
+  g5: { label: '5 · foglie davanti', depth: 0.15, wind: 1.0, exit: 0.69 },
 }
 
 const BY_PSD_GROUP = {

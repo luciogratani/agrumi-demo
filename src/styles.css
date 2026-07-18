@@ -77,6 +77,10 @@ body {
   max-width: calc(100vw - 48px);
   overflow: hidden;
   border-radius: 22px;
+  /* I listener dei gesti sono passivi e non possono chiamare preventDefault:
+     senza questo, su mobile lo swipe farebbe pull-to-refresh o rimbalzo
+     invece della transizione. */
+  touch-action: none;
   background: #7fcdc8;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
@@ -94,6 +98,53 @@ body {
   height: 100%;
 }
 
+/* Scene di destinazione (segnaposto). Riempiono la cornice e stanno fuori
+   posizione finché la transizione non le porta dentro: il transform lo scrive
+   GSAP a ogni fotogramma, qui non c'è nessuna transition CSS che la
+   duplicherebbe. */
+.scene-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  text-align: center;
+  /* Il transform iniziale lo mette `subscribe` al mount; questo evita che il
+     pannello lampeggi in mezzo alla scena per un fotogramma. */
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.scene-panel h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.scene-panel p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.75;
+  max-width: 26ch;
+}
+
+/* Navy dell'insegna, l'unico colore che la scena non usa come superficie. */
+.scene-panel[data-scene='booking'] {
+  background: #1c2b4a;
+  color: #f4ead8;
+}
+
+.scene-panel[data-scene='menu'] {
+  background: #f4ead8;
+  color: #1c2b4a;
+}
+
 /* Pannello di regia (leva). Comportamento unico a prescindere da aperto o
    chiuso: quasi invisibile quando il puntatore è altrove, così non falsa il
    giudizio sulla composizione, pieno mentre lo si usa.
@@ -109,77 +160,4 @@ body {
 .leva-wrap[data-active='true'],
 .leva-wrap:focus-within {
   opacity: 1;
-}
-
-/* --- CTA della hero -------------------------------------------------------
-
-   Non imita la carta della scena, di proposito: piatta e stampata, si legge
-   come interfaccia invece che come un altro ritaglio del collage.
-   Vedi il commento in Cta.jsx per il ragionamento completo. */
-
-.cta-wrap {
-  position: absolute;
-  left: 50%;
-  /* Ancorata al fondo con margine sicuro: su iPhone la barra del browser
-     mangia la parte bassa, e la CTA e' l'ultima cosa che deve finirci sotto. */
-  bottom: max(22px, env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  width: 70%;
-  z-index: 5;
-}
-
-.cta {
-  /* L'offset dell'ombra e' anche la corsa della pressione: il bottone arriva
-     esattamente ad appoggiarsi al piano, non "quasi". */
-  --shadow-x: -4px;
-  --shadow-y: 4px;
-
-  display: block;
-  width: 100%;
-  padding: 15px 18px 14px;
-  border: 0;
-  /* Raggio minimo: una pillola sarebbe il bottone di qualunque app, mentre
-     lo spigolo quasi vivo legge come etichetta stampata. */
-  border-radius: 4px;
-  background: #1c3564;
-  color: #f4ead6;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: clamp(13px, 3.7vw, 15px);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  /* Compensa lo spazio che l'ultima lettera si porta dietro: senza, un testo
-     molto spaziato sembra spostato a sinistra. */
-  text-indent: 0.16em;
-  text-transform: uppercase;
-  line-height: 1;
-
-  box-shadow: var(--shadow-x) var(--shadow-y) 0 rgba(0, 0, 0, 0.9);
-
-  /* Netto ma non scattoso, e asimmetrico: scende in fretta e risale piu'
-     morbido, come un oggetto premuto che torna su. Con una curva simmetrica
-     sembrerebbe un interruttore. */
-  transition:
-    transform 90ms cubic-bezier(0.2, 0, 0.4, 1),
-    box-shadow 90ms cubic-bezier(0.2, 0, 0.4, 1);
-}
-
-.cta:focus-visible {
-  outline: 3px solid #f4ead6;
-  outline-offset: 3px;
-}
-
-/* Premuto: si sposta esattamente dell'offset dell'ombra e l'ombra sparisce,
-   quindi arriva a toccare il piano. */
-.cta[data-pressed='true'] {
-  transform: translate(var(--shadow-x), var(--shadow-y));
-  box-shadow: 0 0 0 rgba(0, 0, 0, 0.9);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cta {
-    transition: none;
-  }
 }

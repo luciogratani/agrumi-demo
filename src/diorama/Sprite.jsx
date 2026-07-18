@@ -97,6 +97,7 @@ export default function Sprite({
   world,
   order,
   parallax,
+  transition,
   wind,
   zSpread,
   shadow,
@@ -218,15 +219,32 @@ export default function Sprite({
 
     g.rotation.z = rotation
 
-    // Parallasse: i piani vicini si spostano di più. In ortografica la Z non
-    // dà profondità, quindi lo scarto è tutto su X/Y.
-    if (!nested && parallax.enabled) {
-      const amt = traits.depth * parallax.strength
-      g.position.x = baseX + parallax.value.current.x * amt * world.w
-      g.position.y = baseY + parallax.value.current.y * amt * world.h
-    } else {
+    // Scarti di posizione, tutti su X/Y: in ortografica la Z non dà profondità.
+    // Gli annidati li saltano — arrivano dal padre, e riapplicarli qui li
+    // conterebbe due volte.
+    if (nested) {
       g.position.x = baseX
       g.position.y = baseY
+    } else {
+      let dx = 0
+      let dy = 0
+
+      // Parallasse: i piani vicini si spostano di più.
+      if (parallax.enabled) {
+        const amt = traits.depth * parallax.strength
+        dx += parallax.value.current.x * amt * world.w
+        dy += parallax.value.current.y * amt * world.h
+      }
+
+      // Transizione fra scene: il diorama scorre in verticale col suo
+      // differenziale (`exit`), il fondale resta dov'è. Si somma alla
+      // parallasse invece di sostituirla, così la scena resta viva mentre passa.
+      if (transition) {
+        dy += transition.value.current.p * traits.exit * transition.strength * world.h
+      }
+
+      g.position.x = baseX + dx
+      g.position.y = baseY + dy
     }
 
     // Respiro: il perno è in basso, quindi il torace si allarga verso l'alto e

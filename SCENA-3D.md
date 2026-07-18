@@ -240,19 +240,97 @@ raggio per la radice del loro numero, quindi levigano senza allargare.
 ma inchioda la parallasse, perché lì dentro ogni elemento è già al suo posto.
 Resta accessibile da pannello come confronto.
 
-**`Cta.jsx`** — è HTML sopra il canvas, non una mesh. Testo vettoriale nitido a
-qualsiasi densità, `<button>` vero (tastiera, lettori di schermo, focus), e si
-cambia senza riesportare niente.
+**La CTA** — al momento **non c'è**: `Cta.jsx` è stato rimosso ed è da rifare
+(`ROADMAP.md` §1.1). Le ragioni della prima versione restano valide e vale la
+pena non riscoprirle da capo:
 
-Sceglie di **non** somigliare alla scena: il diorama è un mondo di carta
-materico e affollato, e un bottone anch'esso di carta diventerebbe un altro
-oggetto del collage invece che qualcosa da toccare. Il navy viene dall'insegna,
-dove però compare solo come inchiostro: è l'unico colore che la scena non usa
-come superficie.
+- è HTML sopra il canvas, non una mesh. Testo vettoriale nitido a qualsiasi
+  densità, `<button>` vero (tastiera, lettori di schermo, focus), e si cambia
+  senza riesportare niente;
+- sceglie di **non** somigliare alla scena: il diorama è un mondo di carta
+  materico e affollato, e un bottone anch'esso di carta diventerebbe un altro
+  oggetto del collage invece che qualcosa da toccare. Il navy viene
+  dall'insegna, dove però compare solo come inchiostro: è l'unico colore che la
+  scena non usa come superficie.
 
 ---
 
-## 7. Il pannello (leva)
+## 7. Transizione fra scene
+
+Il sito ha tre destinazioni disposte in verticale, e si passa dall'una all'altra
+facendo scorrere il diorama:
+
+```
+  -1  menu        0  hero        +1  booking
+```
+
+Il segno è la direzione in cui scorre **la scena**, non l'utente: a `+1` il
+diorama è salito e ha lasciato il posto al booking.
+
+### Il valore condiviso (`transition.js`)
+
+GSAP anima **un oggetto JS**, `{ p }`, e `useFrame` lo legge. Mai il contrario:
+ogni Sprite riscrive posizione e rotazione a ogni fotogramma e `ShadowPass`
+possiede il ciclo di rendering, quindi una tween che scrivesse direttamente su
+`group.position` verrebbe sovrascritta a fotogrammi alterni. È lo stesso schema
+del ref di `useParallaxInput`, così di modelli mentali ne resta uno.
+
+Le scene di destinazione sono DOM e non hanno un `useFrame` da cui leggere: si
+iscrivono con `subscribe` e ricevono `p` a ogni fotogramma. **Su DOM GSAP può
+scrivere direttamente** — lì non c'è nessuno che sovrascrive.
+
+### `exit`, e perché non è `depth`
+
+`depth.js` ha una tabella separata per la transizione. Sono due regie diverse e
+i valori tarati non si somigliano: la parallasse è uno scarto di pochi punti
+percentuali dove il rapporto fra i gruppi si legge come profondità, la
+transizione è una corsa di quasi due altezze di schermo dove lo stesso rapporto
+diventa **velocità di uscita dall'inquadratura**.
+
+Il differenziale non segue la distanza dalla camera ma **l'ordine in cui le cose
+devono sparire**: cielo e locale corrono più del frame e se ne vanno per primi,
+le foglie davanti restano indietro e sono le ultime. È questo sfalsamento a far
+leggere il movimento come un diorama che si smonta invece che come un'immagine
+che scorre.
+
+Il fondale resta a 0 — è il muro dietro, e il cielo fermo è gratis: colore di
+sfondo e `Backdrop` non sono Sprite, quindi non li tocca nessuno.
+
+### I gesti (`gestures.js`)
+
+Stato **discreto guidato dal gesto**, non dalla posizione di scroll. Il booking
+è un form: su mobile la tastiera che si apre ridimensiona il viewport e manda
+fuori sincrono qualunque timeline agganciata allo scroll. Superata la soglia
+parte una transizione intera.
+
+**La direzione segue la convenzione nativa**, non la parola «su»: il dito che
+sale porta il contenuto in alto e scopre ciò che sta sotto, quindi swipe verso
+l'alto (e rotellina verso il basso) portano al booking. È l'opposto di come si
+descrive a voce, ed è il motivo dell'interruttore per invertirlo.
+
+Due cose che sembrano superflue e non lo sono:
+
+- **il blocco anti-inerzia.** Trackpad e iOS mandano eventi per quasi un secondo
+  dopo che il dito si è staccato: senza guardia un gesto solo faceva due passi,
+  dal menu al booking. Si riarma 240 ms dopo l'ultimo evento, non a fine
+  animazione;
+- **`touch-action: none` sulla cornice.** I listener sono passivi e non possono
+  chiamare `preventDefault`: senza, su mobile lo swipe fa pull-to-refresh.
+
+I gesti si spengono con orbit control o modifica perni attivi, dove
+trascinamento e clic servono ad altro.
+
+### `Destinations.jsx`
+
+Menu e booking sono per ora **segnaposto**. Servono a giudicare l'arrivo:
+durata ed ease dipendono da cosa c'è dall'altra parte, e due secondi verso il
+vuoto non si leggono come due secondi verso una pagina piena. Scorrono in senso
+opposto al diorama e in modo lineare su `p`, quindi condividono l'ease con la
+scena senza doverlo ripetere.
+
+---
+
+## 8. Il pannello (leva)
 
 `controls.jsx`. È lo strumento di lavoro principale — praticamente ogni valore
 della scena è stato trovato lì, non scritto a mano.
@@ -272,7 +350,12 @@ Cartelle:
 | **Ombre** | direzione, distanza, risoluzione, sfocatura, passate, opacità, colore |
 | **Parallasse** | intensità, morbidezza, giroscopio |
 | **Vento** | ampiezza, le due frequenze, folata |
-| **Piani** | profondità e vento per gruppo |
+| **Transizione** | corsa, durata, ease, gesti, e i tre passaggi a bottone |
+| **Piani** | profondità, vento e corsa d'uscita per gruppo |
+
+I bottoni della transizione restano accanto ai gesti di proposito: servono a
+rivedere lo stesso passaggio molte volte mentre si tarano corsa e durata, cosa
+che a swipe è scomoda.
 
 **Editor dei perni.** Con `modifica perni` attivo si clicca sulla scena nel
 punto di rotazione del pezzo selezionato: il perno appare in giallo, gli altri
@@ -289,7 +372,7 @@ sta regolando.
 
 ---
 
-## 8. Trappole, in breve
+## 9. Trappole, in breve
 
 - l'ordine di disegno viene dai **numeri nei nomi dei livelli PSD**: cambiarli
   in Photoshop cambia la scena, e nessun ordinamento nel codice va «corretto»
@@ -300,25 +383,29 @@ sta regolando.
   importa JSON da `public/`;
 - il gatto è **figlio del ramo**: spostare il ramo sposta il gatto, ed è voluto;
 - il giroscopio richiede **HTTPS** (`HTTPS=1 pnpm dev`) e, su iOS, un permesso
-  concesso durante un gesto dell'utente.
+  concesso durante un gesto dell'utente;
+- **GSAP non scrive mai sugli oggetti three**, solo su un numero che `useFrame`
+  legge. Sul DOM invece scrive diretto, e va bene.
 
 ---
 
-## 9. Mappa dei file
+## 10. Mappa dei file
 
 ```
 src/diorama/
-  Diorama.jsx     canvas, camera, albero dei layer, input parallasse
-  Sprite.jsx      un layer: perno, annidamento, movimenti
-  ShadowPass.jsx  buffer delle ombre, sfocatura, composizione
-  Backdrop.jsx    muro e pavimento
-  Cta.jsx         bottone di prenotazione (DOM, non scena)
-  PivotEditor.jsx piazzamento dei perni col clic
-  controls.jsx    pannello leva ed export
-  depth.js        tabella di regia dei layer
-  rig.js          pezzi e perni del gatto
-  bend.js         piegatura della coda
-  manifest.json   generato — non modificare a mano
+  Diorama.jsx      canvas, camera, albero dei layer, input parallasse
+  Sprite.jsx       un layer: perno, annidamento, movimenti
+  ShadowPass.jsx   buffer delle ombre, sfocatura, composizione
+  Backdrop.jsx     muro e pavimento
+  Destinations.jsx menu e booking (segnaposto, DOM non scena)
+  PivotEditor.jsx  piazzamento dei perni col clic
+  controls.jsx     pannello leva ed export
+  transition.js    stato delle tre scene, tween GSAP
+  gestures.js      wheel e swipe → passi di transizione
+  depth.js         tabella di regia dei layer
+  rig.js           pezzi e perni del gatto
+  bend.js          piegatura della coda
+  manifest.json    generato — non modificare a mano
 
 tools/
   prep-layers.mjs    PSD → WebP + manifest + asset UI

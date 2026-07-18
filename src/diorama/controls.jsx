@@ -7,6 +7,10 @@ import { CAT } from './rig'
 // "Esporta JSON" copia lo stato corrente negli appunti così com'è da
 // reincollare in depth.js — niente trascrizione a mano dei valori.
 
+// Le cartelle partono chiuse: aperte tutte insieme il pannello è più alto
+// dello schermo e si lavora scorrendo. Si apre quella che serve.
+const SHUT = { collapsed: true }
+
 // Schema Leva per le profondità/vento dei singoli gruppi, generato da GROUPS
 // così aggiungere un gruppo non richiede di toccare il pannello.
 const groupSchema = Object.fromEntries(
@@ -16,13 +20,14 @@ const groupSchema = Object.fromEntries(
       {
         [`${key}_depth`]: { value: g.depth, min: 0, max: 1, step: 0.01, label: 'profondità' },
         [`${key}_wind`]: { value: g.wind, min: 0, max: 2, step: 0.01, label: 'vento' },
+        [`${key}_exit`]: { value: g.exit, min: 0, max: 2, step: 0.01, label: 'corsa uscita' },
       },
       { collapsed: true, label: g.label },
     ),
   ]),
 )
 
-export function useDioramaControls(resetView, rig) {
+export function useDioramaControls(resetView, rig, transitionActions) {
   // I valori correnti, per il bottone di export: leggerli dallo state di React
   // dentro la callback darebbe una closure vecchia.
   const latest = useRef({})
@@ -42,7 +47,7 @@ export function useDioramaControls(resetView, rig) {
       },
       label: 'dispositivo',
     },
-  })
+  }, SHUT)
 
   // Editor dei perni: con la modalità attiva si clicca sulla scena nel punto
   // di rotazione del pezzo selezionato, invece di indovinare le coordinate.
@@ -85,7 +90,7 @@ export function useDioramaControls(resetView, rig) {
     blink: { value: true, label: 'blink' },
     blinkMin: { value: 3, min: 0.5, max: 15, step: 0.1, label: 'intervallo min (s)' },
     blinkMax: { value: 6, min: 0.5, max: 25, step: 0.1, label: 'intervallo max (s)' },
-  })
+  }, SHUT)
 
   const camera = useControls('Camera', {
     orbit: { value: false, label: 'orbit control' },
@@ -95,7 +100,7 @@ export function useDioramaControls(resetView, rig) {
     // frontale, quindi si può alzare senza falsare la composizione.
     zSpread: { value: 0, min: 0, max: 2, step: 0.01, label: 'separazione Z' },
     'Reset vista': button(() => resetView?.current?.()),
-  })
+  }, SHUT)
 
   // `0-sfondo` è la composizione finale appiattita: utile come riferimento,
   // ma da spento lascia libera la parallasse. Al suo posto muro + pavimento.
@@ -105,7 +110,7 @@ export function useDioramaControls(resetView, rig) {
     // L'orizzonte misurato sullo sfondo originale.
     horizon: { value: 0.7055, min: 0.4, max: 1, step: 0.001, label: 'orizzonte' },
     floorColor: { value: '#c1af93', label: 'colore pavimento' },
-  })
+  }, SHUT)
 
   // Fonte di luce unica, espressa come direzione in cui cade l'ombra.
   // Nello sfondo originale la luce viene da destra in alto: le ombre scendono
@@ -131,14 +136,14 @@ export function useDioramaControls(resetView, rig) {
     iterations: { value: 1, min: 1, max: 4, step: 1, label: 'passate' },
     opacity: { value: 0.55, min: 0, max: 1, step: 0.01, label: 'opacità' },
     color: { value: '#000000', label: 'colore' },
-  })
+  }, SHUT)
 
   const parallax = useControls('Parallasse', {
     enabled: { value: false, label: 'attiva' },
     strength: { value: 0.06, min: 0, max: 0.3, step: 0.005, label: 'intensità' },
     lerp: { value: 0.06, min: 0.01, max: 0.3, step: 0.01, label: 'morbidezza' },
     gyro: { value: true, label: 'giroscopio' },
-  })
+  }, SHUT)
 
   const wind = useControls('Vento', {
     // I parametri sono quelli tarati, ma il vento parte spento: la scena ferma
@@ -150,13 +155,49 @@ export function useDioramaControls(resetView, rig) {
     speedA: { value: 1.3, min: 0.05, max: 3, step: 0.01, label: 'frequenza A' },
     speedB: { value: 2.1, min: 0.05, max: 4, step: 0.01, label: 'frequenza B' },
     gustSpeed: { value: 0.15, min: 0.01, max: 1, step: 0.01, label: 'folata' },
-  })
+  }, SHUT)
 
-  const groups = useControls('Piani', groupSchema)
+  // Passaggio fra le tre scene del sito. I bottoni chiamano attraverso un ref
+  // perché l'animazione ha bisogno di durata ed ease definite qui: leggerla
+  // direttamente creerebbe un ciclo fra pannello e hook.
+  const transition = useControls('Transizione', {
+    // In altezze di schermo, moltiplicata per la `corsa uscita` del gruppo:
+    // ben oltre 1 perché i gruppi lenti (0.65) devono comunque uscire tutti.
+    strength: { value: 1.88, min: 0, max: 3, step: 0.01, label: 'corsa (schermi)' },
+    duration: { value: 2, min: 0.2, max: 3, step: 0.05, label: 'durata (s)' },
+    // `inOut` perché il diorama parte fermo e arriva fermo: un `out` secco
+    // sembra che qualcuno l'abbia spinto, non che stia scorrendo.
+    ease: {
+      value: 'power3.inOut',
+      options: {
+        'power2.inOut (morbido)': 'power2.inOut',
+        'power3.inOut': 'power3.inOut',
+        'power4.inOut (deciso)': 'power4.inOut',
+        'expo.inOut (scatto)': 'expo.inOut',
+        'circ.inOut': 'circ.inOut',
+        'back.inOut (rimbalzo)': 'back.inOut(1.1)',
+        'none (lineare)': 'none',
+      },
+      label: 'ease',
+    },
+    // I gesti sono il modo vero di giudicare la transizione, ma i bottoni
+    // restano: servono a rivedere lo stesso passaggio molte volte di fila
+    // mentre si tarano corsa e durata, cosa che a mano è scomoda.
+    gestures: { value: true, label: 'gesti (wheel/swipe)' },
+    // La convenzione nativa dice che il dito che sale scopre ciò che sta
+    // sotto. È l'opposto di come si descrive a parole, quindi si prova.
+    invert: { value: false, label: 'inverti direzione' },
+    threshold: { value: 48, min: 10, max: 200, step: 1, label: 'soglia gesto (px)' },
+    'Ripristina (hero)': button(() => transitionActions?.current?.reset()),
+    'Scendi (menu)': button(() => transitionActions?.current?.go(-1)),
+    'Sali (booking)': button(() => transitionActions?.current?.go(1)),
+  }, SHUT)
+
+  const groups = useControls('Piani', groupSchema, SHUT)
 
   useControls({
     'Esporta JSON': button(() => {
-      const { parallax: p, wind: w, groups: g, scene: s, shadow: sh, cat: c } = latest.current
+      const { parallax: p, wind: w, groups: g, scene: s, shadow: sh, cat: c, transition: tr } = latest.current
       const out = {
         pivots: rig?.current?.pivots,
         cat: c,
@@ -164,11 +205,17 @@ export function useDioramaControls(resetView, rig) {
         shadow: sh,
         parallax: p,
         wind: w,
+        transition: tr,
         // `camera` è strumentazione di regia, non fa parte della scena.
         groups: Object.fromEntries(
           Object.keys(GROUPS).map((key) => [
             key,
-            { label: GROUPS[key].label, depth: g[`${key}_depth`], wind: g[`${key}_wind`] },
+            {
+              label: GROUPS[key].label,
+              depth: g[`${key}_depth`],
+              wind: g[`${key}_wind`],
+              exit: g[`${key}_exit`],
+            },
           ]),
         ),
       }
@@ -178,14 +225,17 @@ export function useDioramaControls(resetView, rig) {
     }),
   })
 
-  latest.current = { parallax, wind, groups, scene, shadow, cat }
+  latest.current = { parallax, wind, groups, scene, shadow, cat, transition }
 
   // Traits risolti per gruppo, nella forma che consumano gli Sprite.
   const traits = Object.fromEntries(
-    Object.keys(GROUPS).map((key) => [key, { depth: groups[`${key}_depth`], wind: groups[`${key}_wind`] }]),
+    Object.keys(GROUPS).map((key) => [
+      key,
+      { depth: groups[`${key}_depth`], wind: groups[`${key}_wind`], exit: groups[`${key}_exit`] },
+    ]),
   )
 
-  return { viewport, cat, camera, scene, shadow, parallax, wind, traits }
+  return { viewport, cat, camera, scene, shadow, parallax, wind, traits, transition }
 }
 
 // Aree visibili reali (CSS px), già al netto dell'interfaccia del browser.
