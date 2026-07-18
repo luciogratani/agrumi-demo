@@ -3,10 +3,11 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import manifest from './manifest.json'
-import { castsShadow, groupKeyFor, scaleFor } from './depth'
+import { castsShadow, FOLLOWS, groupKeyFor, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
+import ShadowPass from './ShadowPass.jsx'
 
 // Mondo in unità normalizzate: altezza tela = 1, larghezza = aspect del PSD.
 const WORLD = { w: manifest.canvas.aspect, h: 1 }
@@ -61,9 +62,8 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
   useLayoutEffect(() => {
     for (const t of textures) {
       t.colorSpace = THREE.SRGBColorSpace
-      // I mip costano ~33% di memoria in più ma servono a due cose: sono la
-      // sfocatura vera delle ombre (lo shader sceglie il livello in base al
-      // raggio) e tolgono l'aliasing agli sprite rimpiccioliti.
+      // I mip costano ~33% di memoria in più ma tolgono l'aliasing agli sprite
+      // rimpiccioliti, che a questa densità di foglie si nota.
       t.minFilter = THREE.LinearMipmapLinearFilter
       t.magFilter = THREE.LinearFilter
       t.generateMipmaps = true
@@ -71,7 +71,26 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
     }
   }, [textures])
 
+  // I layer solidali non vengono disegnati da soli: finiscono dentro il gruppo
+  // del padre, che ne detta pivot, vento e parallasse.
+  const attachments = new Map()
+  manifest.layers.forEach((layer, i) => {
+    const parent = FOLLOWS[layer.slug]
+    if (!parent) return
+    const list = attachments.get(parent) ?? []
+    list.push({
+      layer,
+      texture: textures[i],
+      order: i,
+      scale: scaleFor(layer),
+      castsShadow: castsShadow(layer),
+    })
+    attachments.set(parent, list)
+  })
+
   return manifest.layers.map((layer, i) => {
+    if (FOLLOWS[layer.slug]) return null
+
     // `0-sfondo` è la composizione appiattita: si mostra solo come riferimento
     // e non proietta ombra (le sue sono già cotte dentro).
     if (layer.slug === '0-sfondo' && !scene.showFlat) return null
@@ -89,6 +108,7 @@ function Layers({ parallax, wind, traits, zSpread, scene, shadow }) {
         zSpread={zSpread}
         shadow={castsShadow(layer) ? shadow : { ...shadow, enabled: false }}
         scale={scaleFor(layer)}
+        attached={attachments.get(layer.slug)}
       />
     )
   })
@@ -191,6 +211,7 @@ export default function Diorama() {
             <color attach="background" args={['#7fcdc8']} />
             <CameraRig orbit={camera.orbit} resetView={resetView} />
             <Suspense fallback={null}>
+              <ShadowPass shadow={shadow} world={WORLD} />
               <Backdrop
                 world={WORLD}
                 floor={{ enabled: scene.floor, horizon: scene.horizon, color: scene.floorColor }}

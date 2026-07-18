@@ -12,15 +12,15 @@
 // wind: quanto il gruppo reagisce al vento (0 = fermo).
 export const GROUPS = {
   sfondo: { label: '0 · sfondo', depth: 0.0, wind: 0.0 },
-  cielo: { label: '· nuvole e uccelli', depth: 0.1, wind: 0.15 },
-  albero: { label: '1 · albero', depth: 0.32, wind: 0.25 },
-  tronchetto: { label: '2 · tronchetto', depth: 0.38, wind: 0.35 },
-  tronco: { label: '3 · tronco orizz.', depth: 0.44, wind: 0.4 },
-  g31: { label: '3.1 · foglie e limoni', depth: 0.54, wind: 0.8 },
-  gatto: { label: '3.1 · gatto', depth: 0.54, wind: 0.0 },
-  g32: { label: '3.2 · foglie e limoni', depth: 0.62, wind: 0.9 },
-  locale: { label: '4 · locale e insegna', depth: 0.72, wind: 0.3 },
-  g5: { label: '5 · foglie davanti', depth: 1.0, wind: 1.0 },
+  cielo: { label: '· nuvole e uccelli', depth: 0.55, wind: 0.15 },
+  albero: { label: '1 · albero', depth: 0.21, wind: 0.25 },
+  tronchetto: { label: '2 · tronchetto', depth: 0.3, wind: 0.35 },
+  tronco: { label: '3 · tronco orizz.', depth: 0.24, wind: 0.4 },
+  g31: { label: '3.1 · foglie e limoni', depth: 0.85, wind: 0.8 },
+  gatto: { label: '3.1 · gatto', depth: 0.48, wind: 0.0 },
+  g32: { label: '3.2 · foglie e limoni', depth: 0.4, wind: 0.9 },
+  locale: { label: '4 · locale e insegna', depth: 0.44, wind: 0.3 },
+  g5: { label: '5 · foglie davanti', depth: 0.37, wind: 1.0 },
 }
 
 const BY_PSD_GROUP = {
@@ -43,6 +43,17 @@ const SCALE = {
 
 export function scaleFor(layer) {
   return SCALE[layer.slug] ?? 1
+}
+
+// Layer solidali a un altro: vengono disegnati dentro il gruppo del padre,
+// quindi ne ereditano pivot, rotazione del vento e scarto di parallasse.
+// Senza questo ogni layer avrebbe una fase casuale propria e il logo
+// scivolerebbe via dall'insegna su cui è stampato.
+//
+// È lo stesso meccanismo che servirà al rig del gatto (orecchie, coda, occhi
+// come sotto-piani imparentati) quando si arriverà alla Milestone 4.
+export const FOLLOWS = {
+  '4-logo-insegna': '4-locale-tetto-insegna',
 }
 
 // Layer che non proiettano ombra, pur avendo una profondità.

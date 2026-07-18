@@ -31,7 +31,7 @@ export function useDioramaControls(resetView) {
   // toolbar del browser. È lì che la composizione va giudicata.
   const viewport = useControls('Viewport', {
     device: {
-      value: 'iphone15',
+      value: 'iphonese',
       options: {
         'iPhone 15 · 393×659': 'iphone15',
         'iPhone SE · 375×553': 'iphonese',
@@ -68,11 +68,13 @@ export function useDioramaControls(resetView) {
   // verso sinistra, quindi l'angolo di default punta lì.
   const shadow = useControls('Ombre', {
     enabled: { value: true, label: 'attiva' },
-    angle: { value: 205, min: 0, max: 360, step: 1, label: 'direzione (°)' },
-    distance: { value: 0.03, min: 0, max: 0.2, step: 0.001, label: 'distanza' },
-    blur: { value: 0.012, min: 0, max: 0.08, step: 0.001, label: 'sfocatura' },
-    opacity: { value: 0.3, min: 0, max: 1, step: 0.01, label: 'opacità' },
-    color: { value: '#2e4a4a', label: 'colore' },
+    angle: { value: 214, min: 0, max: 360, step: 1, label: 'direzione (°)' },
+    distance: { value: 0.068, min: 0, max: 0.2, step: 0.001, label: 'distanza' },
+    // In pixel del buffer, che sta a un quarto della risoluzione a schermo:
+    // il valore vale quindi quattro volte tanto sul risultato finale.
+    blur: { value: 0.75, min: 0, max: 16, step: 0.05, label: 'sfocatura' },
+    opacity: { value: 0.54, min: 0, max: 1, step: 0.01, label: 'opacità' },
+    color: { value: '#000000', label: 'colore' },
   })
 
   const parallax = useControls('Parallasse', {
@@ -83,12 +85,14 @@ export function useDioramaControls(resetView) {
   })
 
   const wind = useControls('Vento', {
+    // I parametri sono quelli tarati, ma il vento parte spento: la scena ferma
+    // è il riferimento per giudicare allineamento e composizione.
     enabled: { value: false, label: 'attiva' },
-    amp: { value: 1, min: 0, max: 3, step: 0.05, label: 'ampiezza' },
+    amp: { value: 1.75, min: 0, max: 3, step: 0.05, label: 'ampiezza' },
     ampA: { value: 0.03, min: 0, max: 0.12, step: 0.001, label: 'ampiezza A' },
     ampB: { value: 0.012, min: 0, max: 0.12, step: 0.001, label: 'ampiezza B' },
-    speedA: { value: 0.8, min: 0.05, max: 3, step: 0.01, label: 'frequenza A' },
-    speedB: { value: 1.9, min: 0.05, max: 4, step: 0.01, label: 'frequenza B' },
+    speedA: { value: 1.3, min: 0.05, max: 3, step: 0.01, label: 'frequenza A' },
+    speedB: { value: 2.1, min: 0.05, max: 4, step: 0.01, label: 'frequenza B' },
     gustSpeed: { value: 0.15, min: 0.01, max: 1, step: 0.01, label: 'folata' },
   })
 

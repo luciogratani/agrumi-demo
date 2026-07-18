@@ -57,19 +57,24 @@ body {
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* Ancorata a sinistra: lascia libero il lato dove sta il pannello leva. */
+  justify-content: flex-start;
+  padding-left: 24px;
   background: #14161a;
 }
 
 .diorama-frame {
   position: relative;
+  /* Ingrandimento dell'anteprima sul desktop. Non cambia la scena: la cornice
+     resta grande quanto il dispositivo dichiarato, si guarda solo più da vicino. */
+  --zoom: 1.5;
   /* Dimensioni reali in CSS px, ma senza mai sforare la finestra: se lo
      schermo è più corto del dispositivo la cornice rimpicciolisce mantenendo
      le proporzioni (le detta aspect-ratio, la larghezza segue). */
   aspect-ratio: var(--vw) / var(--vh);
-  height: min(var(--vh), calc(100dvh - 32px));
+  height: min(calc(var(--vh) * var(--zoom)), calc(100dvh - 32px));
   width: auto;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 48px);
   overflow: hidden;
   border-radius: 22px;
   background: #7fcdc8;
