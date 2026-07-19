@@ -1,53 +1,74 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import Booking from './Booking.jsx'
 
-// Le due scene di destinazione, per ora **segnaposto**: servono a giudicare
-// l'arrivo, non a essere il booking o il menu.
+// Le due scene di destinazione.
 //
-// Finché il diorama usciva verso il vuoto si poteva valutare solo la partenza,
-// mentre sono durata ed ease a dipendere da cosa c'è dall'altra parte: due
-// secondi verso il nulla e due secondi verso una pagina piena non si leggono
-// allo stesso modo.
+// **La destinazione non copre il mondo, ci si appoggia sopra.** Prima era un
+// rettangolo opaco a tutto schermo e copriva anche il cielo: il mondo cambiava
+// tutto insieme — oggetti, fondo e materiale — ed è da lì che veniva il taglio,
+// non dal fatto che ci fosse del testo. Il cielo è l'unica cosa che già non si
+// muove (`exit: 0`, e non è nemmeno uno Sprite), quindi era continuità
+// disponibile che stavamo buttando via.
 //
-// Sono DOM sopra il canvas, come la CTA e per lo stesso motivo: testo nitido a
-// qualsiasi densità e, quando saranno reali, form e menu veri — accessibili,
-// selezionabili, senza niente da riesportare.
+// Ora la destinazione è **un foglio di carta** che sale sul cielo: stesso
+// materiale del diorama, e il testo ci sta sopra invece che sulla scena, così
+// resta leggibile — che è il vincolo duro, visto che il booking è un form.
 //
-// Scorrono in senso opposto al diorama e in modo lineare rispetto a `p`:
-// arrivano esattamente mentre la scena se ne va. GSAP le muove tramite
-// `subscribe`, quindi condividono l'ease con la scena senza doverlo ripetere.
+// Due nodi e non uno: il wrapper è trasparente e a tutto schermo, ed è lui che
+// trasla. Traslando direttamente la carta, che è più piccola della cornice, un
+// `translateY(100%)` la sposterebbe solo della propria altezza e ne resterebbe
+// una striscia visibile in fondo.
+//
+// **Dentro la carta non si scorre mai.** Lo scorrimento interno litigava con i
+// gesti che governano gli stati del sito — lo stesso movimento del pollice
+// significava due cose diverse a seconda di dove fosse arrivato il contenuto —
+// quindi il contenuto si adatta alla carta, a passi, invece di sfondarla.
 export default function Destinations({ actions }) {
   const booking = useRef()
   const menu = useRef()
 
+  const close = useCallback(() => actions.current?.reset(), [actions])
+
   useEffect(
     () =>
       actions.current?.subscribe((p) => {
-        // Booking sta sotto: fuori dal frame a p=0, in posizione a p=1.
-        if (booking.current) {
-          booking.current.style.transform = `translateY(${(1 - p) * 100}%)`
-          // Fuori posizione non deve intercettare i gesti destinati alla scena.
-          booking.current.style.pointerEvents = p > 0.99 ? 'auto' : 'none'
-        }
-        // Menu sta sopra: fuori dal frame a p=0, in posizione a p=-1.
-        if (menu.current) {
-          menu.current.style.transform = `translateY(${(1 + p) * -100}%)`
-          menu.current.style.pointerEvents = p < -0.99 ? 'auto' : 'none'
-        }
+        // Attiva solo a destinazione raggiunta: fuori posizione la carta non
+        // deve intercettare i gesti diretti alla scena, né finire nel percorso
+        // di tabulazione o in lettura a un lettore di schermo.
+        applica(booking.current, p > 0.99, `translateY(${(1 - p) * 100}%)`)
+        applica(menu.current, p < -0.99, `translateY(${(1 + p) * -100}%)`)
       }),
     [actions],
   )
 
   return (
     <>
-      <section ref={menu} className="scene-panel" data-scene="menu" aria-hidden="true">
-        <h2>Menu</h2>
-        <p>Segnaposto — scorri verso l’alto per tornare alla hero.</p>
-      </section>
+      <div ref={menu} className="scene-panel">
+        <section className="scene-card">
+          <div className="bk bk--esito">
+            <p className="bk-occhiello">La cucina</p>
+            <h2 className="bk-titolo">Menu</h2>
+            <p className="bk-nota">Segnaposto — il test è sul booking.</p>
+            <button type="button" className="bk-azione" onClick={close}>
+              Torna alla scena
+            </button>
+          </div>
+        </section>
+      </div>
 
-      <section ref={booking} className="scene-panel" data-scene="booking" aria-hidden="true">
-        <h2>Prenota</h2>
-        <p>Segnaposto — scorri verso il basso per tornare alla hero.</p>
-      </section>
+      <div ref={booking} className="scene-panel">
+        <section className="scene-card">
+          <Booking onClose={close} />
+        </section>
+      </div>
     </>
   )
+}
+
+function applica(el, attivo, transform) {
+  if (!el) return
+  el.style.transform = transform
+  el.style.pointerEvents = attivo ? 'auto' : 'none'
+  el.setAttribute('aria-hidden', attivo ? 'false' : 'true')
+  el.inert = !attivo
 }

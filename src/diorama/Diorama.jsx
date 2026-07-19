@@ -3,7 +3,7 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import manifest from './manifest.json'
-import { castsShadow, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
+import { castsShadow, exitFor, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite, { computeGeom } from './Sprite.jsx'
 import Backdrop from './Backdrop.jsx'
@@ -60,7 +60,7 @@ function CameraRig({ orbit, resetView }) {
   )
 }
 
-function Layers({ parallax, transition, wind, traits, zSpread, scene, shadow, cat }) {
+function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, shadow, cat }) {
   // Puntatore normalizzato sul canvas, gia' mantenuto aggiornato da R3F.
   // Vale solo mentre il puntatore e' sulla scena: il gatto guarda chi lo
   // guarda, e smette quando ci si allontana.
@@ -103,13 +103,15 @@ function Layers({ parallax, transition, wind, traits, zSpread, scene, shadow, ca
     if (layer.slug === '0-sfondo' && !scene.showFlat) return null
 
     const geom = computeGeom(layer, WORLD, scaleFor(layer), pivotFor(layer))
+    const groupTraits = traits[groupKeyFor(layer)]
 
     return (
       <Sprite
         key={layer.slug}
         layer={layer}
         texture={textures[i]}
-        traits={traits[groupKeyFor(layer)]}
+        traits={groupTraits}
+        exit={exitFor(layer, groupTraits.exit, linger)}
         world={WORLD}
         order={i}
         parallax={parallax}
@@ -241,14 +243,17 @@ export default function Diorama() {
       {/* Leva sta fuori dalla cornice: resta raggiungibile senza coprire la scena. */}
       <DioramaPanel />
 
-      <div className="diorama-stage">
+      <div className="diorama-stage" data-preview={Boolean(device)}>
         <div
           ref={frame}
           className="diorama-frame"
-          data-full={!device}
+          data-preview={Boolean(device)}
           // Dimensioni reali in CSS px; il CSS le rimpicciolisce solo se non
           // ci stanno nella finestra, mantenendo le proporzioni.
-          style={device ? { '--vw': `${device.w}px`, '--vh': `${device.h}px` } : undefined}
+          style={{
+            ...(device ? { '--vw': `${device.w}px`, '--vh': `${device.h}px` } : null),
+            '--card-inset': `${transition.inset}px`,
+          }}
         >
           <Canvas
             className="diorama-canvas"
@@ -268,6 +273,7 @@ export default function Diorama() {
               <Layers
                 parallax={{ ...parallax, value }}
                 transition={{ value: transitionValue, strength: transition.strength }}
+                linger={{ enabled: transition.linger, exit: transition.lingerExit }}
                 wind={wind}
                 traits={traits}
                 zSpread={camera.zSpread}

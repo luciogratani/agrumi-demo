@@ -40,13 +40,17 @@ export function useSceneTransition({ duration, ease }) {
       for (const fn of listeners) fn(value.current.p)
     }
 
+    // Chi ha chiesto meno movimento non deve vedere mezzo diorama attraversargli
+    // lo schermo: il passaggio avviene comunque, ma è uno stacco e non un viaggio.
+    const ridotto = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
     const tweenTo = (next) => {
       if (next === state.current) return
       state.current = next
       busy.current = true
       gsap.to(value.current, {
         p: next,
-        duration: cfg.current.duration,
+        duration: ridotto() ? 0.01 : cfg.current.duration,
         ease: cfg.current.ease,
         // Un secondo comando durante la transizione riparte da dov'è, senza
         // accodarsi: due tween sulla stessa proprietà si combatterebbero.

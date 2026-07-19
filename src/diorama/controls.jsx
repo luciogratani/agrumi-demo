@@ -32,12 +32,12 @@ export function useDioramaControls(resetView, rig, transitionActions) {
   // dentro la callback darebbe una closure vecchia.
   const latest = useRef({})
 
-  // Anteprima in una cornice delle dimensioni dell'area realmente visibile su
-  // telefono: non l'intero schermo, ma quel che resta tolte barra indirizzi e
-  // toolbar del browser. È lì che la composizione va giudicata.
+  // A schermo pieno di default. La cornice-telefono resta come anteprima da
+  // desktop — utile per controllare la composizione su un'area stretta senza
+  // prendere in mano il telefono — ma non è più il modo normale di guardare.
   const viewport = useControls('Viewport', {
     device: {
-      value: 'iphonese',
+      value: 'full',
       options: {
         'iPhone 15 · 393×659': 'iphone15',
         'iPhone SE · 375×553': 'iphonese',
@@ -180,6 +180,13 @@ export function useDioramaControls(resetView, rig, transitionActions) {
       },
       label: 'ease',
     },
+    // Quanto cielo resta visibile attorno alla carta della destinazione. È il
+    // parametro che decide se il passaggio è uno stacco o una continuità: a 0
+    // la carta copre tutto e si torna al taglio netto di prima.
+    inset: { value: 22, min: 0, max: 80, step: 1, label: 'margine carta (px)' },
+    // Foglie e limoni che restano appesi in alto a incorniciare la carta.
+    linger: { value: true, label: 'cornice (elementi che restano)' },
+    lingerExit: { value: 0.1, min: 0, max: 0.5, step: 0.01, label: 'cornice · corsa' },
     // I gesti sono il modo vero di giudicare la transizione, ma i bottoni
     // restano: servono a rivedere lo stesso passaggio molte volte di fila
     // mentre si tarano corsa e durata, cosa che a mano è scomoda.
@@ -247,50 +254,38 @@ export const DEVICES = {
   full: null,
 }
 
-// Il pannello invade la scena mentre si valuta la composizione: sbiadisce
-// quando il puntatore è altrove, sia aperto che chiuso.
+// Il pannello si chiama con **`L`** e parte nascosto: la scena ora occupa tutto
+// lo schermo e contiene interfacce vere, quindi la regia è uno strumento che si
+// tira fuori quando serve, non una presenza fissa in un angolo.
+//
+// Su telefono non c'è tastiera e quindi non compare mai — che è il
+// comportamento voluto: lì si guarda il sito, non lo si regola.
 export function DioramaPanel() {
+  const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const [hover, setHover] = useState(false)
-  const [dragging, setDragging] = useState(false)
 
-  // Gli slider di leva catturano il puntatore: trascinando si esce dal
-  // pannello e l'hover cade, facendolo sparire proprio mentre lo si regola.
-  // Il trascinamento va quindi tracciato a parte, fino al rilascio ovunque avvenga.
-  useEffect(() => {
-    if (!dragging) return
-    const onUp = () => setDragging(false)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [dragging])
-
-  // Barra spaziatrice per aprire/chiudere senza cercare il pannello.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.code === 'Space' && e.target === document.body) {
-        e.preventDefault()
-        setCollapsed((c) => !c)
-      }
+      if (e.key !== 'l' && e.key !== 'L') return
+      // `Cmd+L`/`Ctrl+L` è la barra degli indirizzi, non roba nostra.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      // La scena contiene campi di testo veri: scrivere «l» nel nome non deve
+      // far comparire il pannello.
+      const t = e.target
+      if (t?.isContentEditable || /^(input|textarea|select)$/i.test(t?.tagName ?? '')) return
+      e.preventDefault()
+      setOpen((o) => !o)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   return (
-    <div
-      className="leva-wrap"
-      data-active={hover || dragging}
-      onPointerEnter={() => setHover(true)}
-      onPointerLeave={() => setHover(false)}
-      onPointerDown={() => setDragging(true)}
-    >
+    <div className="leva-wrap">
       <Leva
+        hidden={!open}
         collapsed={{ collapsed, onChange: setCollapsed }}
-        titleBar={{ title: 'Agrumì · regia' }}
+        titleBar={{ title: 'Agrumì · regia — L per chiudere' }}
         // Doppio della larghezza di default (280/160): con etichette lunghe
         // come «idle · rotazione max» quella standard le tronca.
         theme={{ sizes: { rootWidth: '560px', controlWidth: '320px' } }}

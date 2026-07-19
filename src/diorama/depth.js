@@ -42,6 +42,36 @@ export const GROUPS = {
   g5: { label: '5 · foglie davanti', depth: 0.15, wind: 1.0, exit: 0.69 },
 }
 
+// Elementi che **non se ne vanno** con la transizione: restano appesi in alto
+// e fanno da cornice alla carta della destinazione.
+//
+// Sono foglie e limoni del gruppo 5, già tutti fra y 0.04 e 0.18 — cioè già in
+// alto nella tela, il che li rende cornice senza doverli spostare. Nessun
+// asset nuovo e nessun costo di VRAM: sono texture già caricate, riposizionate.
+//
+// Stanno *dietro* alla carta, che è DOM sopra il canvas: emergono da sotto il
+// foglio come se il foglio fosse stato infilato sotto il ramo. Continuano anche
+// a ondeggiare col vento (il gruppo 5 ha `wind: 1.0`), quindi la scena di
+// arrivo non è ferma.
+//
+// Il numero è un **fattore relativo**, moltiplicato per il valore unico del
+// pannello: si tara una manopola sola e la spaziatura fra loro resta.
+export const LINGER = {
+  '5-foglia-2': 0.6,
+  '5-foglia-nuvola-sx': 0.8,
+  '5-layer-10': 1.0,
+  '5-foglie-nuvola-dx': 0.6,
+  '5-foglia': 1.0,
+  '5-limone': 1.4,
+}
+
+// Corsa d'uscita di un layer: quella del suo gruppo, se non è di cornice.
+export function exitFor(layer, groupExit, linger) {
+  if (!linger.enabled) return groupExit
+  const factor = LINGER[layer.slug]
+  return factor === undefined ? groupExit : factor * linger.exit
+}
+
 const BY_PSD_GROUP = {
   0: 'sfondo',
   1: 'albero',

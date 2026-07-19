@@ -98,6 +98,7 @@ export default function Sprite({
   order,
   parallax,
   transition,
+  exit,
   wind,
   zSpread,
   shadow,
@@ -239,8 +240,10 @@ export default function Sprite({
       // Transizione fra scene: il diorama scorre in verticale col suo
       // differenziale (`exit`), il fondale resta dov'è. Si somma alla
       // parallasse invece di sostituirla, così la scena resta viva mentre passa.
+      // `exit` arriva già risolto: per i layer di cornice non è quello del
+      // gruppo, perché loro restano in campo mentre il resto esce.
       if (transition) {
-        dy += transition.value.current.p * traits.exit * transition.strength * world.h
+        dy += transition.value.current.p * exit * transition.strength * world.h
       }
 
       g.position.x = baseX + dx

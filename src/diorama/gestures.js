@@ -24,6 +24,9 @@ export function useSceneGestures(ref, { enabled, invert, threshold }, actions) {
     let accum = 0
     let rest = null
 
+    // Niente convivenza da negoziare con lo scorrimento: dentro le destinazioni
+    // non si scorre (il contenuto sta a passi), quindi il gesto verticale
+    // significa sempre e solo navigazione fra gli stati del sito.
     const fire = (dir) => {
       const t = actions.current
       if (!t || locked || t.busy.current) return

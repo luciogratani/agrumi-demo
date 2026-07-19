@@ -1,5 +1,18 @@
+/* Palette campionata dagli asset, non scelta a fianco: l'inchiostro è il navy
+   del logo sull'insegna, il limone è quello dei limoni, la carta è quella
+   della targa schiarita quanto basta a leggerci sopra. Se la scena cambia,
+   questi valori si ricampionano invece di andare alla deriva. */
 :root {
   --agrumi-sky: #7fb7b6;
+
+  --inchiostro: #113251;
+  --limone: #efb416;
+  --carta: #f0e2c9;
+
+  --ombra-carta: -6px 10px 24px rgba(17, 30, 45, 0.3);
+  /* Un occhiello e le etichette di sezione condividono lo stesso trattamento:
+     è la voce già usata dal marchio in «SAPORI SOLARI». */
+  --maiuscoletto: 600 10.5px/1 system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -49,22 +62,40 @@ body {
   height: 100%;
 }
 
-/* Anteprima del diorama in una cornice delle dimensioni dell'area davvero
-   visibile su telefono. Il pannello leva resta fuori dalla cornice, sullo
-   sfondo neutro, così non copre mai la scena da giudicare. */
+/* Il sito occupa tutto lo schermo. La cornice-telefono su sfondo scuro è
+   rimasta come anteprima da desktop (Viewport nel pannello), ma non è più il
+   modo normale di guardare la scena: adesso che ci sono interfacce vere
+   dentro il contenitore, giudicarle dentro un rettangolo in mezzo a una
+   pagina scura ingannava più di quanto aiutasse. */
 .diorama-stage {
   position: fixed;
   inset: 0;
+  background: var(--agrumi-sky);
+}
+
+.diorama-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* I listener dei gesti sono passivi e non possono chiamare preventDefault:
+     senza questo, su mobile lo swipe farebbe pull-to-refresh o rimbalzo
+     invece della transizione. */
+  touch-action: none;
+  background: #7fcdc8;
+}
+
+/* Anteprima nelle dimensioni dell'area davvero visibile su telefono. */
+.diorama-stage[data-preview='true'] {
   display: flex;
   align-items: center;
-  /* Ancorata a sinistra: lascia libero il lato dove sta il pannello leva. */
+  /* Ancorata a sinistra: lascia libero il lato dove compare il pannello. */
   justify-content: flex-start;
   padding-left: 24px;
   background: #14161a;
 }
 
-.diorama-frame {
-  position: relative;
+.diorama-frame[data-preview='true'] {
   /* Ingrandimento dell'anteprima sul desktop. Non cambia la scena: la cornice
      resta grande quanto il dispositivo dichiarato, si guarda solo più da vicino. */
   --zoom: 1.5;
@@ -75,21 +106,8 @@ body {
   height: min(calc(var(--vh) * var(--zoom)), calc(100dvh - 32px));
   width: auto;
   max-width: calc(100vw - 48px);
-  overflow: hidden;
   border-radius: 22px;
-  /* I listener dei gesti sono passivi e non possono chiamare preventDefault:
-     senza questo, su mobile lo swipe farebbe pull-to-refresh o rimbalzo
-     invece della transizione. */
-  touch-action: none;
-  background: #7fcdc8;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
-.diorama-frame[data-full='true'] {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  box-shadow: none;
 }
 
 .diorama-canvas {
@@ -98,66 +116,393 @@ body {
   height: 100%;
 }
 
-/* Scene di destinazione (segnaposto). Riempiono la cornice e stanno fuori
-   posizione finché la transizione non le porta dentro: il transform lo scrive
-   GSAP a ogni fotogramma, qui non c'è nessuna transition CSS che la
-   duplicherebbe. */
+/* Scene di destinazione. Il wrapper è trasparente e a tutto schermo: trasla
+   lui, così la carta esce davvero dalla cornice invece di fermarsi a una
+   striscia dal bordo. Il transform lo scrive GSAP a ogni fotogramma, quindi
+   qui non c'è nessuna `transition` CSS che lo duplicherebbe. */
 .scene-panel {
   position: absolute;
   inset: 0;
   z-index: 2;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  /* La carta ha una larghezza massima: qui la si tiene al centro. */
   justify-content: center;
-  gap: 8px;
-  padding: 32px;
-  text-align: center;
+  /* Il margine attorno alla carta è ciò che lascia vedere il cielo: è il
+     punto della cosa, non un dettaglio di spaziatura. */
+  padding: var(--card-inset, 22px);
   /* Il transform iniziale lo mette `subscribe` al mount; questo evita che il
      pannello lampeggi in mezzo alla scena per un fotogramma. */
   transform: translateY(100%);
   pointer-events: none;
 }
 
-.scene-panel h2 {
+/* Il foglio di carta su cui vive il testo. Stesso materiale del diorama, così
+   la destinazione appartiene al mondo invece di sostituirlo — e il testo sta
+   su carta e non sulla scena, che è il vincolo vero: il booking è un form.
+
+   `max-width` perché il contenitore è a schermo pieno: senza, su desktop la
+   carta si stira per tutta la finestra e un'interfaccia pensata per il pollice
+   si ritrova larga più di mille pixel. La misura resta quella di un telefono
+   anche quando c'è spazio, come deve essere per un'app mobile-first.
+
+   L'ombra ha la stessa direzione di quelle del diorama (luce da destra in
+   alto): la carta è staccata dal fondo come ogni altra sagoma della scena. */
+.scene-card {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  max-width: 460px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--carta);
+  color: var(--inchiostro);
+  border-radius: 6px;
+  box-shadow: var(--ombra-carta);
+}
+
+/* ── Form di prenotazione, a passi ─────────────────────────────────────────
+   Tre fasce: testa fissa, corpo che occupa quel che resta, piede con l'azione
+   sempre nello stesso punto. **Non si scorre mai**: ogni passo sta nella carta,
+   e se un giorno non ci stesse la risposta è dividerlo, non far scorrere.
+   Il pollice trova il bottone dove l'ha lasciato passo dopo passo. */
+.bk {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 18px 18px;
+  gap: 14px;
+}
+
+.bk-testa {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bk-icona {
+  appearance: none;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+  font-family: inherit;
+  color: var(--inchiostro);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.bk-icona:hover {
+  background: color-mix(in srgb, var(--inchiostro) 8%, transparent);
+}
+
+/* Avanzamento: quanti passi ci sono e a che punto si è. Non è decorazione —
+   in un form a tappe la domanda vera è «quanto manca». */
+.bk-avanzamento {
+  flex: 1;
+  display: flex;
+  gap: 5px;
   margin: 0;
-  font-size: 30px;
+  padding: 0;
+  list-style: none;
+}
+
+.bk-avanzamento li {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--inchiostro) 14%, transparent);
+}
+
+.bk-avanzamento li[data-fatto='true'] {
+  background: color-mix(in srgb, var(--inchiostro) 40%, transparent);
+}
+
+.bk-avanzamento li[data-corrente='true'] {
+  background: var(--limone);
+}
+
+.bk-nascosto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.bk-corpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bk-occhiello {
+  margin: 0;
+  font: var(--maiuscoletto);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--inchiostro) 50%, transparent);
+}
+
+.bk-titolo {
+  margin: -6px 0 2px;
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* Giorni in griglia: quattro per riga, niente scorrimento laterale. Le colonne
+   sono frazioni, quindi la griglia si adatta e non sborda mai. */
+.bk-giorni {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+
+.bk-giorno,
+.bk-ora,
+.bk-passo-n {
+  appearance: none;
+  font-family: inherit;
+  color: var(--inchiostro);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--inchiostro) 20%, transparent);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.bk-giorno {
+  min-width: 0;
+  padding: 8px 0 9px;
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.bk-giorno-nome {
+  font: var(--maiuscoletto);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.bk-giorno-num {
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
-.scene-panel p {
-  margin: 0;
+.bk-servizi {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bk-servizio {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bk-servizio-nome {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--inchiostro) 62%, transparent);
+}
+
+.bk-ore {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.bk-ora {
+  padding: 9px 14px;
+  border-radius: 999px;
   font-size: 14px;
-  line-height: 1.5;
+  font-weight: 550;
+}
+
+/* La scelta fatta è l'unica cosa in limone pieno di tutta la carta. */
+.bk-giorno[aria-pressed='true'],
+.bk-ora[aria-pressed='true'] {
+  background: var(--limone);
+  border-color: var(--limone);
+}
+
+.bk-giorno[aria-pressed='true'] .bk-giorno-nome {
   opacity: 0.75;
-  max-width: 26ch;
 }
 
-/* Navy dell'insegna, l'unico colore che la scena non usa come superficie. */
-.scene-panel[data-scene='booking'] {
-  background: #1c2b4a;
-  color: #f4ead8;
+.bk-persone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 8px 0;
 }
 
-.scene-panel[data-scene='menu'] {
-  background: #f4ead8;
-  color: #1c2b4a;
+.bk-passo-n {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  font-size: 21px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
 }
 
-/* Pannello di regia (leva). Comportamento unico a prescindere da aperto o
-   chiuso: quasi invisibile quando il puntatore è altrove, così non falsa il
-   giudizio sulla composizione, pieno mentre lo si usa.
-   `data-active` copre anche il trascinamento degli slider, durante il quale
-   il puntatore esce dal pannello e l'hover da solo cadrebbe. */
+.bk-passo-n:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.bk-conta {
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bk-conta small {
+  font-size: 13px;
+  font-weight: 450;
+  color: color-mix(in srgb, var(--inchiostro) 60%, transparent);
+}
+
+/* Riepilogo di quel che si è già scelto, mentre si lascia il nome: evita di
+   dover tornare indietro per ricontrollare. */
+.bk-recap {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 550;
+  background: color-mix(in srgb, var(--inchiostro) 7%, transparent);
+}
+
+.bk-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bk-campo span {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: color-mix(in srgb, var(--inchiostro) 62%, transparent);
+}
+
+.bk-campo input {
+  width: 100%;
+  font-family: inherit;
+  /* 16px non è estetica: sotto questa misura iOS zooma sul focus e sballa
+     l'inquadratura della carta. */
+  font-size: 16px;
+  color: var(--inchiostro);
+  padding: 11px 12px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--inchiostro) 20%, transparent);
+  background: color-mix(in srgb, #ffffff 42%, transparent);
+}
+
+.bk-campo input::placeholder {
+  color: color-mix(in srgb, var(--inchiostro) 38%, transparent);
+}
+
+.bk-piede {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bk-azione {
+  appearance: none;
+  width: 100%;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  padding: 14px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--inchiostro);
+  color: var(--carta);
+  cursor: pointer;
+}
+
+.bk-azione:disabled {
+  background: color-mix(in srgb, var(--inchiostro) 26%, transparent);
+  color: color-mix(in srgb, var(--inchiostro) 55%, transparent);
+  cursor: default;
+}
+
+.bk-nota {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--inchiostro) 58%, transparent);
+}
+
+.bk-nota--chiusura {
+  text-align: center;
+}
+
+/* Esito: la carta si svuota e resta solo il fatto compiuto. */
+.bk--esito {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.bk--esito .bk-titolo {
+  margin: 0;
+}
+
+.bk--esito .bk-azione {
+  margin-top: 14px;
+}
+
+.bk-riepilogo {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  max-width: 30ch;
+}
+
+/* Il focus deve restare visibile su carta chiara senza urlare. */
+.scene-card :focus-visible {
+  outline: 2px solid var(--inchiostro);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-giorno,
+  .bk-ora,
+  .bk-passo-n {
+    transition: none;
+  }
+}
+
+
+/* Pannello di regia (leva). Sta sopra la scena a schermo pieno, e si chiama
+   con `L` invece di restare sempre presente: prima sbiadiva per non falsare
+   il giudizio sulla composizione, adesso semplicemente non c'è finché non
+   serve. */
 .leva-wrap {
   position: relative;
-  z-index: 10;
-  opacity: 0.05;
-  transition: opacity 200ms ease;
-}
-
-.leva-wrap[data-active='true'],
-.leva-wrap:focus-within {
-  opacity: 1;
+  z-index: 20;
 }

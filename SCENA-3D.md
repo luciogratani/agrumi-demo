@@ -320,13 +320,63 @@ Due cose che sembrano superflue e non lo sono:
 I gesti si spengono con orbit control o modifica perni attivi, dove
 trascinamento e clic servono ad altro.
 
-### `Destinations.jsx`
+### Le destinazioni (`Destinations.jsx`, `Booking.jsx`)
 
-Menu e booking sono per ora **segnaposto**. Servono a giudicare l'arrivo:
-durata ed ease dipendono da cosa c'è dall'altra parte, e due secondi verso il
-vuoto non si leggono come due secondi verso una pagina piena. Scorrono in senso
-opposto al diorama e in modo lineare su `p`, quindi condividono l'ease con la
-scena senza doverlo ripetere.
+Scorrono in senso opposto al diorama e in modo lineare su `p`: arrivano mentre
+la scena se ne va, e condividono l'ease con lei senza doverlo ripetere. Il menu
+è ancora un segnaposto; il booking è un form vero, ed è lì che si è capito cosa
+regge.
+
+**La destinazione non copre il mondo, ci si appoggia sopra.** All'inizio era un
+rettangolo opaco a tutto schermo e lo stacco era netto — ma non per via del
+testo: perché il mondo cambiava tutto insieme, oggetti, fondo e materiale. Il
+cielo è l'unica cosa che già non si muove, quindi era continuità disponibile che
+si stava buttando via. Ora la destinazione è **un foglio di carta con un margine
+attorno**, il cielo resta visibile, e qualche foglia del gruppo 5 non esce con
+le altre e incornicia il foglio (`LINGER` in `depth.js`).
+
+Due nodi e non uno: il wrapper è trasparente e a tutto schermo, ed è lui che
+trasla. Traslando la carta, che è più piccola della cornice, un
+`translateY(100%)` la sposterebbe solo della propria altezza e ne resterebbe una
+striscia dal bordo.
+
+**Dentro la carta non si scorre mai.** È stato provato: lo scorrimento interno
+litiga con i gesti che governano gli stati del sito, perché lo stesso movimento
+del pollice significa due cose diverse a seconda di dove è arrivato il
+contenuto. Esisteva una logica che negoziava (cedi al contenuto finché ha corsa,
+poi naviga) ed è stata **tolta** — il gesto verticale ha un significato solo. Il
+contenuto si adatta alla carta, a passi: se un passo non ci sta, si divide, non
+si fa scorrere.
+
+La carta ha un `max-width`: il contenitore è a schermo pieno e senza limite su
+desktop si stirerebbe per tutta la finestra, con un'interfaccia da pollice larga
+mille pixel.
+
+### Lingua visiva dell'interfaccia
+
+**I colori sono campionati dagli asset, non affiancati a occhio.** Inchiostro
+`#113251` dal logo sull'insegna, limone `#efb416` dai limoni, carta `#f0e2c9`
+dalla targa schiarita quanto basta a leggerci sopra. Se gli asset cambiano si
+ricampionano invece di andare alla deriva — bastano un istogramma sui pixel
+opachi di `public/layers/*.webp` e i bucket più popolosi.
+
+Due regole che tengono insieme il resto:
+
+- **il navy non è mai superficie, solo inchiostro**, com'è nella scena. L'unica
+  eccezione è il bottone d'azione, ed è proprio per questo che si vede;
+- **un solo colore pieno in tutta la carta**, il limone sulla scelta fatta.
+  Tutto il resto sono contorni all'inchiostro al 20%.
+
+L'interfaccia è deliberatamente quieta: fuori c'è un diorama affollato, e più ci
+si avvicina alla conferma meno deve esserci da guardare.
+
+> **Manca la tipografia.** Tutto gira su `system-ui`, che non è una scelta ma
+> l'assenza di una: niente webfont per non aggiungere una richiesta di rete, e
+> nel repo non ci sono file di font. La poca personalità del testo viene da come
+> è usato — maiuscoletto spaziato a `0.16em` per occhielli ed etichette, la voce
+> che il marchio già usa in «SAPORI SOLARI» — non da cosa è. Scegliere un
+> display face cambierà il carattere della pagina più di qualunque altra cosa
+> fatta finora.
 
 ---
 
@@ -343,7 +393,7 @@ Cartelle:
 
 | | |
 |---|---|
-| **Viewport** | anteprima nelle dimensioni dell'area **davvero visibile** su telefono, già al netto delle barre del browser |
+| **Viewport** | anteprima in una cornice grande quanto l'area **davvero visibile** su telefono. Non è più il default: da quando il sito è a schermo pieno la scena si guarda intera, e la cornice serve solo a controllare la composizione su un'area stretta senza prendere in mano il telefono |
 | **Rig gatto** | perni, respiro, idle, inseguimento, coda, blink |
 | **Camera** | orbit control, separazione Z, reset vista |
 | **Sfondo** | composito appiattito, pavimento, orizzonte |
@@ -361,9 +411,17 @@ che a swipe è scomoda.
 punto di rotazione del pezzo selezionato: il perno appare in giallo, gli altri
 in bianco, e l'export li include. Piazzarli a numeri sarebbe frustrante.
 
-**Comportamento del pannello.** Da fermo scende al 5% di opacità e torna pieno
-al passaggio del puntatore, così non falsa il giudizio sulla composizione. La
-barra spaziatrice apre e chiude.
+**Comportamento del pannello.** Si chiama con **`L`** e parte nascosto. Prima
+era sempre presente e sbiadiva al 5% quando il puntatore era altrove, per non
+falsare il giudizio sulla composizione; da quando la scena occupa tutto lo
+schermo e contiene interfacce vere, la regia è uno strumento che si tira fuori
+quando serve.
+
+Due esclusioni necessarie nella scorciatoia: `Cmd`/`Ctrl+L` è la barra degli
+indirizzi, e la pressione va ignorata dentro i campi di testo — scrivere
+«Lucio» nel nome della prenotazione farebbe altrimenti comparire il pannello.
+Su telefono non c'è tastiera e quindi non compare mai, che è il comportamento
+voluto.
 
 Un dettaglio non ovvio: l'opacità tiene conto anche del **trascinamento**.
 Gli slider di leva catturano il puntatore, quindi trascinando si esce dal
@@ -397,7 +455,8 @@ src/diorama/
   Sprite.jsx       un layer: perno, annidamento, movimenti
   ShadowPass.jsx   buffer delle ombre, sfocatura, composizione
   Backdrop.jsx     muro e pavimento
-  Destinations.jsx menu e booking (segnaposto, DOM non scena)
+  Destinations.jsx menu e booking: la carta sul cielo (DOM, non scena)
+  Booking.jsx      form di prenotazione a passi (prototipo, non invia nulla)
   PivotEditor.jsx  piazzamento dei perni col clic
   controls.jsx     pannello leva ed export
   transition.js    stato delle tre scene, tween GSAP

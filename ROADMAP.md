@@ -26,9 +26,11 @@ Non era in piano: è arrivata prima perché definisce il **contenitore** in cui
 tutto il resto dovrà vivere. Il diorama scorre in verticale fra tre stati (menu
 · hero · booking), guidato dal gesto. Come funziona: `SCENA-3D.md` §7.
 
+Il sito è ora **a schermo pieno** e il pannello di regia si chiama con `L`.
+
 Cosa manca per dirla finita:
 
-- le destinazioni sono segnaposto — diventano reali col §2.1;
+- il menu è ancora un segnaposto (il booking ha un prototipo di form, §2.1);
 - il gesto è **discreto**: si supera la soglia e parte tutto. Trascinare il
   diorama seguendo il dito, con snap al rilascio, sarebbe più ricco, ma ha
   senso solo dopo aver stabilito che il movimento in sé convince;
@@ -86,7 +88,23 @@ riscrive.
 
 ## Fase 2 — il prodotto
 
+### 2.0 Scegliere la tipografia
+
+Non c'è. Tutta l'interfaccia gira su `system-ui`, che è l'assenza di una scelta:
+sul telefono diventa San Francisco, su Windows Segoe, su Android Roboto.
+
+È il singolo intervento che cambierà di più il carattere del sito, e va fatto
+**prima** di costruire menu e form definitivi — rifare la tipografia dopo
+significa ritarare ogni spaziatura. Vincoli: peso in rete (priorità 2 del
+`CLAUDE.md`), e un display face che regga accanto a un diorama di carta senza
+fare il verso all'illustrazione.
+
 ### 2.1 Componenti reali: form di prenotazione e menu
+
+Il booking ha un **prototipo** funzionante a quattro passi (`Booking.jsx`):
+stato locale, non invia niente. Serviva a verificare che la carta reggesse un
+compito vero — regge. Il menu è ancora un segnaposto, ed è lì che vale la pena
+spendere l'azzardo visivo, perché non c'è niente da compilare.
 
 **La cosa più importante di tutte** — è il punto del sito. Sta dopo la fase 1
 non perché conti meno, ma perché è un **registro creativo diverso**:
