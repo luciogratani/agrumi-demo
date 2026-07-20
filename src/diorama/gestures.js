@@ -5,9 +5,10 @@ import { useEffect } from 'react'
 // **La direzione segue la convenzione nativa**, non la parola «su»: il dito
 // che sale porta il contenuto in alto e scopre ciò che sta sotto — quindi
 // swipe verso l'alto (e rotellina verso il basso) fanno salire il diorama e
-// arrivare al booking. È l'opposto di quello che verrebbe da dire a parole, ed
-// è il motivo per cui c'è comunque un interruttore per invertirlo: è una cosa
-// da giudicare col pollice, non a tavolino.
+// arrivare al menu; swipe verso il basso fa scendere il diorama e calare il
+// booking dall'alto. È l'opposto di quello che verrebbe da dire a parole, ed è
+// il motivo per cui c'è comunque un interruttore per invertirlo: è una cosa da
+// giudicare col pollice, non a tavolino.
 //
 // Il gesto è discreto, non continuo: supera la soglia e parte una transizione
 // intera. Trascinare il diorama a metà strada sarebbe più ricco, ma va deciso

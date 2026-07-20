@@ -207,8 +207,8 @@ export function useDioramaControls(resetView, rig, transitionActions) {
     invert: { value: false, label: 'inverti direzione' },
     threshold: { value: 48, min: 10, max: 200, step: 1, label: 'soglia gesto (px)' },
     'Ripristina (hero)': button(() => transitionActions?.current?.reset()),
-    'Scendi (menu)': button(() => transitionActions?.current?.go(-1)),
-    'Sali (booking)': button(() => transitionActions?.current?.go(1)),
+    'Scendi (booking)': button(() => transitionActions?.current?.go(-1)),
+    'Sali (menu)': button(() => transitionActions?.current?.go(1)),
   }, SHUT)
 
   const groups = useControls('Piani', groupSchema, SHUT)

@@ -35,8 +35,11 @@ export default function Destinations({ actions }) {
         // Attiva solo a destinazione raggiunta: fuori posizione la carta non
         // deve intercettare i gesti diretti alla scena, né finire nel percorso
         // di tabulazione o in lettura a un lettore di schermo.
-        applica(booking.current, p > 0.99, `translateY(${(1 - p) * 100}%)`)
-        applica(menu.current, p < -0.99, `translateY(${(1 + p) * -100}%)`)
+        // Booking sul lato negativo: il diorama scende e la carta del booking
+        // cala dall'alto — è la scena più importante sul movimento preferito.
+        // Il menu sale da sotto sul lato positivo.
+        applica(booking.current, p < -0.99, `translateY(${(1 + p) * -100}%)`)
+        applica(menu.current, p > 0.99, `translateY(${(1 - p) * 100}%)`)
       }),
     [actions],
   )

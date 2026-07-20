@@ -3,11 +3,12 @@ import gsap from 'gsap'
 
 // La transizione fra le scene del sito, come singolo valore condiviso.
 //
-//   -1  menu        0  hero        +1  booking
+//   -1  booking        0  hero        +1  menu
 //
-// Il segno è la direzione in cui scorre *la scena*, non l'utente: a +1 il
-// diorama è salito e ha lasciato il posto al booking, a -1 è sceso e sopra è
-// rimasto il menu.
+// Il segno è la direzione in cui scorre *la scena*, non l'utente: a -1 il
+// diorama è sceso e dall'alto è calato il booking, a +1 è salito e sotto è
+// rimasto il menu. Il booking sta sul movimento a scendere di proposito: è la
+// destinazione più importante, e quel movimento è il più curato in composizione.
 //
 // **GSAP anima questo oggetto JS, non gli oggetti three.** Ogni Sprite
 // riscrive posizione e rotazione a ogni fotogramma dentro `useFrame`, e
@@ -64,7 +65,8 @@ export function useSceneTransition({ duration, ease }) {
     }
 
     return {
-      // Un passo per volta: da booking «scendi» riporta alla hero, non al menu.
+      // Un passo per volta: da una destinazione si torna alla hero, non si
+      // salta direttamente all'altra.
       go: (dir) => tweenTo(Math.max(-1, Math.min(1, state.current + dir))),
       reset: () => tweenTo(0),
       state,
