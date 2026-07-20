@@ -17,6 +17,13 @@ function useHashRoute() {
 export default function App() {
   const route = useHashRoute()
 
+  // Solo `#/diorama2` sa dire quando ha davvero disegnato. Sulla home vuota e
+  // sulla scena vecchia nessuno congederebbe la schermata di caricamento, che
+  // resterebbe lì per sempre: qui la si congeda a montaggio avvenuto.
+  useEffect(() => {
+    if (route !== '/diorama2') window.__loader?.done()
+  }, [route])
+
   const Scene = { '/diorama': HeroScene, '/diorama2': Diorama }[route]
   if (!Scene) return null
 

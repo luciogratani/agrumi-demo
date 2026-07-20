@@ -3,11 +3,606 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#78b2ac" />
     <title>Agrumì</title>
+
+    <link rel="preload" as="image" href="/layers/muro-carta.webp" />
+    <link rel="preload" as="image" href="/loader/ramo.webp" />
+    <link rel="preload" as="image" href="/loader/gatto.webp" />
+
+    <!--
+      Schermata di caricamento. Sta qui e non in React di proposito: il bundle
+      pesa qualche centinaio di kB e va scaricato, parsato ed eseguito prima
+      che React possa disegnare, quindi un loader scritto in React non copre
+      il tratto peggiore dell'attesa — non può comparire prima di sé stesso.
+      Da qui invece dipinge al primo fotogramma.
+
+      Per la stessa ragione lo stile è inline e non in styles.css: un foglio
+      collegato è un altro giro di rete prima del primo paint.
+
+      Il fondo arriva a due tempi. Prima il turchese pieno, che è la media
+      della carta: è nel documento, quindi non aspetta niente e lo schermo non
+      è mai bianco. Poi la carta vera, che entra in dissolvenza quando è
+      decodificata — e siccome il colore sotto è già quello giusto, quello che
+      si vede comparire è solo la grana.
+
+      `muro-carta.webp` è lo stesso file che la scena R3F usa come fondale
+      (Backdrop.jsx), inquadrato con lo stesso cover: fra loader e scena il
+      fondo non cambia di un pixel.
+    -->
+    <style>
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        overflow: hidden;
+        background: #78b2ac; /* media della carta: dipinge subito */
+        transition: opacity 700ms ease; /* se cambia, aggiorna FADE sotto */
+      }
+
+      #loader.is-out {
+        opacity: 0;
+      }
+
+      #loader .loader-carta {
+        position: absolute;
+        inset: 0;
+        background: url('/layers/muro-carta.webp') center / cover no-repeat;
+        opacity: 0;
+        transition: opacity 420ms ease;
+      }
+
+      #loader .loader-carta.is-in {
+        opacity: 1;
+      }
+
+      /*
+        Gli sprite sono tutti a tela piena 1080x1920 e già allineati fra loro,
+        quindi si impilano con una regola sola. La tela sta *dentro* il
+        viewport invece di coprirlo: su uno schermo più lungo di 9:16 il logo
+        verrebbe tagliato, e la carta attorno riempie benissimo.
+      */
+      #loader .loader-tela {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        translate: -50% -50%;
+        aspect-ratio: 1080 / 1920;
+        height: 100dvh;
+        /* Le ombre della barra si misurano in `cqw`, cioè in percentuale
+           della tela: così restano proporzionate a ogni dimensione di
+           schermo invece di ingrossarsi sui telefoni piccoli. */
+        container-type: size;
+        /* Su desktop resta una colonna verticale sulla carta, come le
+           destinazioni: il sito ha una grammatica sola. */
+        max-width: 100vw;
+      }
+
+      #loader .loader-sprite {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #loader .loader-sprite,
+      #loader .loader-testo,
+      #loader .loader-barra {
+        opacity: 0;
+        transition: opacity 500ms ease;
+      }
+
+      #loader .is-in {
+        opacity: 1;
+      }
+
+      /*
+        Soggetto e bolle galleggiano insieme, quindi stanno in un gruppo e
+        l'animazione è una sola: le bolle sono il pensiero del gatto e se si
+        muovessero per conto loro si staccherebbero da lui. La carta di fondo
+        resta ferma — farla ondeggiare la farebbe sembrare acqua.
+      */
+      #loader .loader-gatto {
+        position: absolute;
+        inset: 0;
+        animation: loader-galleggia 6.5s ease-in-out infinite;
+      }
+
+      @keyframes loader-galleggia {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        50% {
+          translate: 0 -0.7%;
+        }
+      }
+
+      /*
+        Il respiro. Il gatto è un pezzo unico — le parti separate (torace,
+        testa, zampe) non si sono potute estrarre dal PSD — quindi si espande
+        tutto il corpo: che è poi quello che fa un gatto accucciato, dove il
+        fianco si alza e il resto segue appena.
+
+        Il punto è dosare *dove* si espande, e per farlo servono due perni
+        diversi, cioè due elementi annidati: un solo `transform-origin` non può
+        stare in due posti.
+
+        - in **verticale** il perno sta sul pancino (54%), appena sopra il
+          ramo: il fianco si alza, la pancia resta dov'è appoggiata;
+        - in **orizzontale** il perno sta sulla testa (44%): così la faccia è
+          il punto fermo e a gonfiarsi è il corpo dietro. Col perno al centro
+          il muso ondeggerebbe, che è l'effetto da evitare.
+
+        Il ramo è un altro sprite e non respira affatto: le foglie e i limoni
+        restano immobili, come devono.
+
+        Ampiezze sotto l'1%, come il gatto della hero (Sprite.jsx): sotto quella
+        soglia si legge come respiro, sopra come uno zoom.
+      */
+      #loader .loader-respiro-x {
+        position: absolute;
+        inset: 0;
+        transform-origin: 44% 74%;
+        animation: loader-respiro-x 2.5s ease-in-out infinite;
+      }
+
+      #loader .loader-gatto-corpo {
+        position: absolute;
+        inset: 0;
+        transform-origin: 75% 54%;
+        animation: loader-respiro-y 2.5s ease-in-out infinite;
+      }
+
+      @keyframes loader-respiro-x {
+        0%,
+        100% {
+          scale: 1 1;
+        }
+        50% {
+          scale: 1.006 1;
+        }
+      }
+
+      @keyframes loader-respiro-y {
+        0%,
+        100% {
+          scale: 1 1;
+        }
+        50% {
+          scale: 1 1.012;
+        }
+      }
+
+      /*
+        Le bolle sono tre file separati e si animano come nei cartoni: compare
+        la piccola, poi la media, poi la grande — dal basso verso l'alto, cioè
+        nell'ordine in cui il pensiero sale dalla testa del gatto. Restano su
+        un momento, poi **spariscono tutte insieme**, e dopo una pausa il ciclo
+        ricomincia.
+
+        Per questo servono tre blocchi di keyframes invece di uno solo con
+        `animation-delay`: il ritardo sfaserebbe anche l'uscita, e le bolle si
+        spegnerebbero a una a una come si sono accese. Qui l'entrata è scalata
+        (0%, 12%, 24%) ma l'uscita è alla stessa percentuale per tutte e tre.
+
+        `transform-origin` è il centro di ciascuna bolla *dentro la tela
+        piena* — senza, scalerebbero attorno al centro dell'immagine e
+        scivolerebbero via. I valori vengono dai bounding box dell'alfa.
+
+        L'animazione tocca anche l'opacità, e in CSS un'animazione batte una
+        dichiarazione normale: se partisse subito, le bolle si vedrebbero
+        prima di essere entrate. Per questo sta su `.is-in` e non sulla base.
+      */
+      #loader .loader-bolla.is-in {
+        animation: var(--ciclo) 5s ease-in-out infinite;
+      }
+
+      #loader .loader-bolla-1 {
+        --ciclo: loader-pensiero-1;
+        transform-origin: 38.5% 42.9%;
+      }
+
+      #loader .loader-bolla-2 {
+        --ciclo: loader-pensiero-2;
+        transform-origin: 34% 39.6%;
+      }
+
+      #loader .loader-bolla-3 {
+        --ciclo: loader-pensiero-3;
+        transform-origin: 34.5% 33.9%;
+      }
+
+      /* Le tre entrate sono sfalsate, l'uscita a 72-80% è comune. */
+      @keyframes loader-pensiero-1 {
+        0% {
+          opacity: 0;
+          scale: 0.55;
+        }
+        9%,
+        72% {
+          opacity: 1;
+          scale: 1;
+        }
+        80%,
+        100% {
+          opacity: 0;
+          scale: 0.8;
+        }
+      }
+
+      @keyframes loader-pensiero-2 {
+        0%,
+        12% {
+          opacity: 0;
+          scale: 0.55;
+        }
+        21%,
+        72% {
+          opacity: 1;
+          scale: 1;
+        }
+        80%,
+        100% {
+          opacity: 0;
+          scale: 0.8;
+        }
+      }
+
+      @keyframes loader-pensiero-3 {
+        0%,
+        24% {
+          opacity: 0;
+          scale: 0.55;
+        }
+        33%,
+        72% {
+          opacity: 1;
+          scale: 1;
+        }
+        80%,
+        100% {
+          opacity: 0;
+          scale: 0.8;
+        }
+      }
+
+      /*
+        La riga "Stiamo svegliando il gatto…". È SVG inline e non un webfont
+        perché un font collegato è un altro giro di rete prima del primo paint,
+        cioè esattamente quello che questa schermata esiste per evitare. I
+        tracciati vengono da `loading-screen/asset/testo.svg`.
+
+        Posizione e colore vengono dal riferimento: la banda chiara sopra la
+        barra sta a 21.20%/69.58% ed è crema calda, non bianca.
+      */
+      #loader .loader-testo {
+        position: absolute;
+        left: 21.2037%;
+        top: 69.5833%;
+        width: 56.1111%;
+        fill: #f5e2c4;
+      }
+
+      /*
+        I puntini di sospensione si accendono uno alla volta da sinistra e poi
+        si spengono insieme, come un "sto pensando" scritto a mano.
+
+        Sono `<ellipse>` dentro il viewBox, quindi accendersi e spegnersi non
+        cambia la larghezza di niente: il testo resta ancorato al suo bordo
+        sinistro, allineato con la barra sotto. Fossero caratteri veri, il testo
+        centrato ballerebbe a ogni puntino.
+
+        Stessa ragione delle bolle per i tre blocchi di keyframes invece di uno
+        con `animation-delay`: il ritardo sfaserebbe anche lo spegnimento, e i
+        puntini si spegnerebbero a uno a uno come si sono accesi.
+      */
+      #loader .loader-puntino {
+        animation: var(--ciclo) 1.8s ease-in-out infinite;
+      }
+
+      #loader .loader-puntino-1 {
+        --ciclo: loader-puntino-1;
+      }
+
+      #loader .loader-puntino-2 {
+        --ciclo: loader-puntino-2;
+      }
+
+      #loader .loader-puntino-3 {
+        --ciclo: loader-puntino-3;
+      }
+
+      @keyframes loader-puntino-1 {
+        0%,
+        4% {
+          opacity: 0;
+        }
+        12%,
+        84% {
+          opacity: 1;
+        }
+        92%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes loader-puntino-2 {
+        0%,
+        29% {
+          opacity: 0;
+        }
+        37%,
+        84% {
+          opacity: 1;
+        }
+        92%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes loader-puntino-3 {
+        0%,
+        54% {
+          opacity: 0;
+        }
+        62%,
+        84% {
+          opacity: 1;
+        }
+        92%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      /*
+        La barra. A differenza degli altri sprite il binario crema **non** è a
+        tela piena: l'export del PSD lo mette più grande e più in basso della
+        composizione di riferimento, e a tela piena la sua posizione sarebbe
+        cotta dentro l'immagine. Ritagliato al bounding box diventa invece un
+        riquadro che si piazza dove serve — qui alla misura del riferimento,
+        più piccolo e risalito verso il gatto.
+
+        Il riquadro comprende l'ombra cotta, non la sola carta: tagliare sulla
+        carta lascerebbe l'ombra fuori dallo sprite.
+
+        Il giallo è **incassato** dentro la carta, non la copre: il crema resta
+        visibile tutt'attorno. Le sue misure qui sotto sono in percentuale del
+        riquadro, non della tela.
+
+        Tutte queste percentuali le stampa `tools/prep-loader.mjs` leggendo i
+        bounding box dell'alfa: non sono trascritte a occhio. Per spostare la
+        barra si toccano i tre numeri di `RIF` là dentro e si rilancia.
+      */
+      #loader .loader-barra {
+        position: absolute;
+        left: 20.9942%;
+        top: 73.1771%;
+        width: 57.5663%;
+        height: 2.875%;
+      }
+
+      #loader .loader-barra-binario {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #loader .loader-barra-riempimento {
+        position: absolute;
+        left: 2.1028%;
+        top: 10.5263%;
+        height: 60.5263%;
+        /* La barra piena non arriva al bordo del riquadro: si ferma dove
+           finisce la carta, il resto è ombra. L'avanzamento è la frazione
+           `--p` di quella corsa, non del riquadro — altrimenti a metà il
+           giallo starebbe un 3% più avanti di dove dice di essere. */
+        --pieno: 96.729%;
+        width: calc(var(--pieno) * var(--p, 0));
+        /* Un pallino: sotto questa larghezza la punta arrotondata non avrebbe
+           spazio per chiudersi e la forma verrebbe sbagliata. */
+        min-width: 5.3738%;
+        border-radius: 999px;
+        /* `auto 100%` disegna la carta alla sua lunghezza naturale, che è
+           quella della barra piena: crescendo, l'elemento la *scopre* invece
+           di stirarla, e la grana resta ferma dov'è. */
+        background: url('/loader/barra-riempimento.webp') left center / auto 100% no-repeat;
+        /* Ombra coerente con quella cotta nel binario — stessa direzione,
+           stessa morbidezza — ma circa la metà: il binario è carta sul muro,
+           il giallo è carta sopra un'altra carta, sollevata di pochissimo.
+           `drop-shadow` segue la sagoma, quindi la punta tonda che avanza si
+           porta dietro la sua ombra. */
+        filter: drop-shadow(0 0.14cqw 0.13cqw rgba(0, 0, 0, 0.5));
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #loader {
+          transition-duration: 1ms;
+        }
+        #loader .loader-gatto,
+        #loader .loader-respiro-x,
+        #loader .loader-gatto-corpo,
+        #loader .loader-bolla.is-in,
+        #loader .loader-puntino {
+          animation: none;
+        }
+      }
+
+      .loader-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    </style>
   </head>
   <body>
+    <!-- Fratello di #root, non figlio: dentro, React lo cancellerebbe al primo
+         render, di colpo e senza uscita. -->
+    <div id="loader" role="status" aria-live="polite">
+      <div class="loader-carta"></div>
+
+      <div class="loader-tela">
+        <img class="loader-sprite loader-logo" src="/loader/logo.webp" alt="Agrumì — Garden Bar" />
+
+        <!-- Ramo, gatto e pensiero galleggiano insieme: un gruppo solo. Il
+             gatto sta davanti al ramo perché ci è appoggiato sopra e la coda
+             gli ricade davanti. I due `loader-respiro-*` sono i perni del
+             respiro, che tocca il solo gatto. -->
+        <div class="loader-gatto">
+          <img class="loader-sprite loader-ramo" src="/loader/ramo.webp" alt="" />
+
+          <div class="loader-respiro-x">
+            <div class="loader-gatto-corpo">
+              <img class="loader-sprite" src="/loader/gatto.webp" alt="" />
+            </div>
+          </div>
+
+          <img class="loader-sprite loader-bolla loader-bolla-1" src="/loader/bolla-1.webp" alt="" />
+          <img class="loader-sprite loader-bolla loader-bolla-2" src="/loader/bolla-2.webp" alt="" />
+          <img class="loader-sprite loader-bolla loader-bolla-3" src="/loader/bolla-3.webp" alt="" />
+        </div>
+
+        <svg class="loader-testo" viewBox="0 0 3206.65 263.81" aria-hidden="true">
+          <path d="m588.7 181.63.07 6.33-30.63-4.75-17.2 4.55c1.28-22.06 1.99-42.97 1.34-64.97-.49-16.6-3.76-38.14-18.67-40.69-16.42-2.81-26.43 12.32-27.41 29.08-1.08 18.5-.87 36.84.7 55.23.81 9.46 6.91 15.16 16.22 15.15l-.08 6.48-31.74-5.16-32.54 5.11.35-6.54c9.37.22 15.48-5.16 16.52-14.15 1.33-11.46 1.76-22.84 1.38-34.57l-1.17-35.75c-.25-7.71-6.01-12.41-13.34-12.13-1.01.04-3.81.18-3.83-.74l-.13-5.38c10.36-2.24 20.64-3.43 31.9-4.06l7.99-6.63c.72-.59 2.74-1.04 3.57-.9 5.92 1.03-1.24 16.39 1.85 26.84 11.03-23.78 36.98-33.27 58.53-21.05 7.86 4.46 11.76 12.36 15.82 21.55 8.9-19.53 27.19-29.11 47.3-26.39 30.39 4.12 30.17 34.12 31.02 60.63l1.22 37.85c.3 9.4 7.02 15.1 16.88 14.84l.25 6.58-30.78-4.49-18.11 4.14c1.22-23.18 1.86-45.63.97-68.92-.67-17.57-3.57-35.9-20.17-36.98-8.46-.55-15.95 3.32-20.07 11.28-3.32 6.43-5.65 14.17-5.65 21.79v43.82c-.01 5.09.96 11.26 3.02 15.57 2.64 5.55 8.45 6.85 14.6 7.41Zm1920.51-1.36c23.66 3.53 48.76 7.26 51.8 32.4 3.1 25.66-17.28 42.21-39.94 47.88-21.89 5.47-51.66 5.11-69.33-9.49-9.62-7.94-13.58-21.57-8.23-33.28 6.66-14.61 26.15-18.65 41.94-20.95-11.88-2.76-25.57-6.17-27.65-17.83-2.4-13.41 8.19-21.13 22.09-25.45-12.62-3.99-23.35-10.72-28.6-23.05-10.5-24.67 1.19-53.98 28.79-61.66 11.16-3.1 22.05-2.25 33.34.09l22.28 4.62c9.2.51 17.86-2.2 26.83-3.67l-2.61 11.83c-.34 1.55-3.07 4.6-4.48 4.63l-15.93.29c13.39 24.19 6.14 51.29-18.48 62.85-14.19 6.67-26.55 4.1-37.07 10.41-2.17 1.3-4.07 5.01-3.94 7.27.47 8.1 18.21 11.49 29.19 13.12Zm4.25-93.06c-3.34-7.97-10-12.84-17.6-12.49-7.41.34-13.98 5.19-16.74 13.52-7.67 23.09-2.04 61.25 20.43 59.42 21.29-1.74 22.88-39.04 13.91-60.45m15.29 158.33c6.23-5.58 9.17-13.16 7.73-21.99-3.39-20.74-37.59-24.52-58.31-16.98-9.23 3.36-15.3 11.09-16.18 19.99-.98 9.95 3.46 18.38 11.99 23.5 14.83 8.91 41.29 7.54 54.78-4.53Zm-1196.76-65.27c23.66 3.53 48.76 7.26 51.8 32.4 3.1 25.66-17.28 42.21-39.94 47.88s-51.66 5.11-69.33-9.49c-9.62-7.94-13.58-21.57-8.23-33.28 6.66-14.61 26.15-18.65 41.94-20.95-11.88-2.76-25.57-6.17-27.65-17.83-2.4-13.41 8.19-21.13 22.09-25.45-12.62-3.99-23.35-10.72-28.6-23.05-10.5-24.67 1.19-53.98 28.79-61.66 11.16-3.1 22.05-2.25 33.34.09l22.28 4.62c9.2.51 17.86-2.2 26.83-3.67l-2.61 11.83c-.34 1.55-3.07 4.6-4.48 4.63l-15.93.29c13.39 24.19 6.14 51.29-18.48 62.85-14.19 6.67-26.55 4.1-37.07 10.41-2.17 1.3-4.07 5.01-3.94 7.27.47 8.1 18.21 11.49 29.19 13.12Zm4.25-93.06c-3.34-7.97-10-12.84-17.6-12.49s-13.98 5.19-16.74 13.52c-7.67 23.09-2.04 61.25 20.43 59.42 21.29-1.74 22.88-39.04 13.91-60.45m15.29 158.33c6.23-5.58 9.17-13.16 7.73-21.99-3.39-20.74-37.59-24.52-58.31-16.98-9.23 3.36-15.3 11.09-16.18 19.99-.98 9.95 3.46 18.38 11.99 23.5 14.83 8.91 41.29 7.54 54.78-4.53Zm580.82-73.93c-11.58 13.16-27.54 19-44.92 18.03-21.75-1.22-39.82-15.6-45.39-37.79-3.64-14.51-3.46-29.67 1.33-44.03 12.17-36.44 52.75-48.52 87.24-36.86l-1.02-39.04c-.1-3.86-2.03-7.79-3.81-10.89-5.39-3.34-9.8-3.85-16.54-3.36l.27-6.32 35.7-3.71 11.58-7.5c1.16-.75 4.4 1.6 4.39 2.8l-1.45 32.83.03 104.88c0 7.71.92 15.09 2.45 22.16 3.19 14.72 19.17 9.19 19.51 10.54l1.37 5.47-33.07 5.24c-2.91.46-6.52 3.3-9.46 5.12-1.47.91-6.01-.23-6.23-2l-1.99-15.58Zm-15.2 1.12c5.5-2.18 13.48-8.31 13.44-15.06l-.35-68.61c-4.82-10.96-18.37-15.26-29.13-14.11s-20.16 8.6-25.27 19.87c-8.67 19.1-6.44 49.07 6.87 66.8 8.18 10.89 21.01 16.44 34.44 11.11M28.78 185.88l-13.95-4.22c-3.25-.99-6.45.9-7.18 4.85l-7.66-.35 5.25-19.53c-1.19-12-2.75-22.85-2.56-35.54l8.58-.31c1.16 25.84 14.36 47.89 39.6 50.57 7.96.84 15.99.25 23.29-2.92 11.42-4.97 17.92-15.96 17.79-28.7-.11-10.88-4.76-20.16-13.54-26.14C49.05 103.62 3.77 98.58 3.61 55.71 3.48 22.22 30.59 3.74 62.1 3.74c11 0 21.55 2.23 32.35 4.34 4.06.79 7.58.52 10.1-3.22l7.45.54-4.76 16.18c.93 10.52 1.71 19.7 1.5 30.09l-8.27-.02c-.82-13.8-5.81-26.7-17.53-33.72s-26.16-7-37.68-.86c-8.18 4.36-12.61 12.42-13.69 20.58-2.88 21.88 23.85 36.1 43.26 44.79 11.41 5.1 22.14 10.83 31.61 19.01 21.12 18.25 20.18 53.75-.9 72.57-20.94 18.71-49.88 20.01-76.76 11.86M1756.72 81.7c-23.2-.79-28.38 23.4-27.7 46.03l1.14 38.38c.28 9.49 6.46 15.55 16.55 15.28l.36 6.21-32.69-3.24-32.59 3.3v-5.98c6.02-.6 12.66-1.99 14.98-8.3 2.04-5.55 2.94-12.42 2.94-18.62v-48.05c0-5.37-.79-12.01-3.06-16.43-2.76-5.35-8.62-5.7-14.56-5.39l-.22-6.39 32.05-3.96 9.19-7.86 4.51 2.47c-.75 8.53-1.85 16.42-.96 25.81 6.86-13.03 14.94-21.95 28.02-25.41 9.19-2.43 18.85-2.46 28.11.01 25.33 6.77 25.25 35.93 25.94 59.16l1.12 37.57c.28 9.48 6.7 15.34 16.64 15.15.2 1.68.18 4.61-.04 6.55l-30.36-3.7-18.09 3.32.77-67.87c.09-8.04-1.43-15.9-3.33-23.31-2.38-9.3-9.82-14.43-18.69-14.73ZM970.35 181.16c-23.35 14.92-64.94 8.26-68.62-2.48-.79-2.32.6-6.91 1.16-9.16l-3.02-22.73h7.55c1.16 7.98 2.98 14.92 7.27 21.43 7.75 11.77 22.19 16.71 35 11.47 6.21-2.54 9.8-8.72 10.26-14.79 1.83-24.47-37.57-26.91-51.23-43.48-12.69-15.39-6.86-38.72 10.01-47.9 19.32-10.51 54.05-8.51 60.55 3.38 1.19 2.19-1.87 6.64-1.64 8.79l2.1 18.97-7.44-.04c-1.2-7.34-2.94-13.41-6.81-19.28-7.01-10.63-20.99-14.09-31.33-6.87-5.05 3.52-7.08 9.35-6.24 15.43.67 4.89 3.99 10.46 9.12 13.13l25.6 13.37c5.95 3.11 12.73 6.76 17 12.2 12.25 15.63 6.81 38.29-9.3 48.58ZM765.87 185.14c-18.16 6.8-38.2 6.25-55.39-1.44-21.74-9.72-34.53-30.71-34.7-54.96-.17-24.33 12.27-45.68 34.08-55.68 19.74-9.05 43.69-8.7 62.93 1.42 19.93 10.48 30.91 30.52 31.11 53.25.22 25.8-13.91 48.39-38.02 57.41Zm5.09-57.41c0-24.75-6.46-53.33-31.34-53.04-23.41.28-30.58 27.28-30.66 51.04-.08 25.02 4.99 55.94 30.64 56.05 25.4.1 31.35-29.02 31.35-54.06Zm1310.63 57.41c-18.16 6.8-38.2 6.25-55.39-1.44-21.74-9.72-34.53-30.71-34.7-54.96-.17-24.33 12.27-45.68 34.08-55.68 19.74-9.05 43.69-8.7 62.93 1.42 19.93 10.48 30.91 30.52 31.11 53.25.22 25.8-13.91 48.39-38.02 57.41Zm5.08-57.41c0-24.75-6.46-53.33-31.34-53.04-23.41.28-30.58 27.28-30.66 51.04-.08 25.02 4.99 55.94 30.64 56.05 25.4.1 31.35-29.02 31.35-54.06Zm898.99 57.41c-18.16 6.8-38.2 6.25-55.39-1.44-21.74-9.72-34.53-30.71-34.7-54.96s12.27-45.68 34.08-55.68c19.74-9.05 43.69-8.7 62.93 1.42 19.93 10.48 30.91 30.52 31.11 53.25.22 25.8-13.91 48.39-38.02 57.41Zm5.08-57.41c0-24.75-6.46-53.33-31.34-53.04-23.41.28-30.58 27.28-30.66 51.04-.08 25.02 4.99 55.94 30.64 56.05 25.4.1 31.35-29.02 31.35-54.06ZM321.25 167.46c-3.81-23.27 20.2-34.35 41.24-40.3 11.8-3.34 25.43-5.93 27.23-15.75 3.08-16.76.49-36.13-16.06-36.72-9.18-.33-16.84 5.41-18.46 14.98-.95 5.61-.16 10.67 2.04 16.47-3.17 1.96-7.53 3.94-11.45 4.49-7.88 1.1-14.15-4.43-14.97-12.32-2.62-25.28 33.83-36.6 61.82-29.43 12.39 3.18 20.86 12.52 23.98 25.3 7.11 29.11-3.02 72.93 10.2 77.85 3.77 1.4 7.02.36 11-2.3l3.26 5.2c-7.19 7.12-15.18 12.51-24.97 13.68-11.86 1.42-21.35-5.58-23.33-18.42-13.15 16.87-34.67 23.34-54.45 17.33-9.55-2.9-15.61-11.13-17.07-20.07Zm35.02 4.94c6.81 4.97 15.99 4.18 23.16.11 6.06-3.44 10.7-11.41 10.81-19.81l.33-25.87-14.17 4.9c-11.98 4.15-26.02 11.38-26.56 23.76-.27 6.2.94 12.9 6.43 16.91m2218.57-4.12c-4.79-25.2 20.87-34.33 41.1-41.12l20.38-6.84c9.04-3.03 9.46-22.46 5.9-34.14-2.22-7.3-8.01-11.23-15.11-11.49-9.18-.33-16.84 5.41-18.46 14.98-.95 5.61-.16 10.67 2.04 16.47-3.17 1.96-7.53 3.94-11.45 4.49-7.88 1.1-14.15-4.43-14.97-12.32-2.62-25.28 33.83-36.6 61.82-29.43 12.39 3.18 20.86 12.52 23.98 25.3 7.1 29.07-3 72.97 10.18 77.84 3.84 1.42 7.04.37 11.02-2.29l3.26 5.21c-7.2 7.12-15.18 12.51-24.97 13.68-11.85 1.41-21.35-5.56-23.32-18.44-12.81 16.51-33.49 22.9-52.97 17.84-9.91-2.57-16.67-10.51-18.42-19.74Zm34.87 4.12c6.81 4.97 15.99 4.18 23.16.11 6.06-3.44 10.7-11.41 10.81-19.81l.33-25.87-14.17 4.9c-11.98 4.15-26.02 11.38-26.56 23.76-.27 6.2.94 12.9 6.43 16.91m-1055.46-4.94c-4.02-24.7 21.33-33.62 41.24-40.3l20.38-6.84c9.04-3.03 9.46-22.46 5.9-34.14-2.22-7.3-8.01-11.23-15.11-11.49-9.18-.33-16.84 5.41-18.46 14.98-.95 5.61-.16 10.67 2.04 16.47-3.17 1.96-7.53 3.94-11.45 4.49-7.88 1.1-14.15-4.43-14.97-12.32-2.62-25.28 33.83-36.6 61.82-29.43 12.39 3.18 20.86 12.52 23.98 25.3 7.12 29.12-3.03 72.95 10.21 77.85 3.7 1.37 7.07.37 10.99-2.3l3.26 5.2c-7.2 7.12-15.18 12.51-24.97 13.68-11.85 1.41-21.35-5.57-23.32-18.43-12.98 16.69-34.08 23.12-53.72 17.59-9.87-2.78-16.3-11.04-17.81-20.32Zm35.02 4.94c6.81 4.97 15.99 4.18 23.16.11 6.06-3.44 10.7-11.41 10.81-19.81l.33-25.87-14.17 4.9c-11.98 4.15-26.02 11.38-26.56 23.76-.27 6.2.94 12.9 6.43 16.91m-341.76-9.31 3.54 4.93c-16.36 20.13-46.84 25.58-70.92 19.18-21.7-5.76-35.81-24.59-37.88-47.49-1.6-17.64 1.65-34.48 11.64-48.64 12.02-17.04 30.43-26 50.73-24.18 25.72 2.32 46.8 21.33 43.05 48.82l-68.9.03c-4.07 0-6.31 3.41-6.53 7.11-1.19 19.98 7.87 38.38 24.95 47.68 16.64 7.37 35.37 5.1 50.33-7.45Zm-31.83-56.38c7.81 0 4.43-21.79-10.4-29.63-10.1-5.34-21.87-1.49-28.05 8.15-4.09 6.38-5.44 13.6-5.09 21.5l43.55-.02Zm1071.78 81.25.11-6.27c6.08-.53 13.19-1.41 15.69-7.7 2.65-6.69 3.44-14.65 3.44-22.34l-.02-110.88c0-6.02-.68-12.66-3.17-17.51-2.73-5.31-8.62-5.61-14.61-5.43l-.3-6.37 32.67-3.72 9.38-6.56c1.65-1.15 6.69-1.6 6.56 1.61l-1.47 36.01.1 111.84c0 8.05.77 16.24 3.43 23.27 2.26 5.96 9.14 7.21 15.05 7.65.68 1.21.85 3.87.69 6.34l-33.77-4-33.78 4.04Zm-896.38 0 .11-6.27c6.08-.53 13.19-1.41 15.69-7.7 2.65-6.69 3.44-14.65 3.44-22.34l-.02-110.88c0-6.02-.68-12.66-3.17-17.51-2.73-5.31-8.62-5.61-14.61-5.43l-.3-6.37 32.67-3.72 9.38-6.56c1.65-1.15 6.69-1.6 6.56 1.61l-1.47 36.01.1 111.84c0 8.05.77 16.24 3.43 23.27 2.26 5.96 9.14 7.21 15.05 7.65.68 1.21.85 3.87.69 6.34l-33.77-4-33.78 4.04ZM1112.8 73.29l23.54-3.74-.05 5.38c0-.25-10.28 4.77-16.19 15.95l-18.09 34.24-26.75 63.7c-6.52-1.17-11.65-1.08-18.38.12l-22.45-53.21c-6.69-15.84-13.99-30.64-23.11-44.93-8.99-14.1-17.07-15.13-17.39-15.88-.49-1.17.03-4.32.58-5.55l32.15 4.17 31.72-4.1.11 5.59c.03 1.67-8.03 1.48-10.57 5.57-1.39 2.24-1.34 6.71-.46 9.5 7.77 24.76 17.47 47.86 28.43 72.15l18.77-48.85 5.66-21.58c-.17-4.3-.36-8.57-3.11-11.73-2.11-2.41-5.87-3.48-10.44-4.3l-.38-6.32 26.42 3.83Zm1772.55 95.41 3.76 5.35c-13.87 13.99-33.96 18.71-52.44 13.87-9.01-2.36-15.65-9.09-17.99-18.45s-3.59-18.46-3.62-28l-.15-55.73-16.71-.03.13-7.75c21.64-1.84 31.12-16.65 34.67-38.19l11.54-.05v35.01l28.75-.48v11.94l-28.77-.47.04 58c.01 15.72 3.44 30.98 18.25 32.82 8.63 1.07 16.14-2.25 22.54-7.84m-96.18 0 3.76 5.35c-13.87 13.99-33.96 18.71-52.44 13.87-9.01-2.36-15.65-9.09-17.99-18.45s-3.59-18.46-3.62-28l-.15-55.73-16.71-.03.13-7.75c21.64-1.84 31.12-16.65 34.67-38.19l11.54-.05v35.01l28.75-.48v11.94l-28.77-.47.04 58c.01 15.72 3.44 30.98 18.25 32.82 8.63 1.07 16.14-2.25 22.54-7.84m-2561.22 0 3.76 5.35c-13.87 13.99-33.96 18.71-52.44 13.87-9.01-2.36-15.65-9.09-17.99-18.45s-3.59-18.46-3.62-28l-.15-55.73-16.71-.03.13-7.75c21.64-1.84 31.12-16.65 34.67-38.19l11.54-.05v35.01l28.75-.48v11.94l-28.77-.47.04 58c.01 15.72 3.44 30.98 18.25 32.82 8.63 1.07 16.14-2.25 22.54-7.84m1983.93 19.36-.19-6.34c5.58-.72 11.62-1.56 14.29-7.13 2.27-4.74 3.28-11.26 3.28-16.89l-.06-53.95c0-4.77-1.09-10.92-3.52-14.42-3.13-4.49-8.01-4.56-13.75-4.48l-.2-6.31 33.98-3.46 9.94-7.72c1.17-.91 4.88.87 4.81 2.29l-1.69 32.07.1 51.04c.01 6.92.71 14.52 3.03 20.67s8.25 7.65 14.69 8.14l-.05 6.47-32.34-5.15-32.31 5.17Zm-739.61 0-.19-6.34c5.58-.72 11.62-1.56 14.29-7.13 2.27-4.74 3.28-11.26 3.28-16.89l-.06-53.95c0-4.77-1.09-10.92-3.52-14.42-3.13-4.49-8.01-4.56-13.75-4.48l-.2-6.31 33.98-3.46 9.94-7.72c1.17-.91 4.88.87 4.81 2.29l-1.69 32.07.1 51.04c.01 6.92.71 14.52 3.03 20.67 2.28 6.03 8.25 7.65 14.69 8.14l-.05 6.47-32.34-5.15-32.31 5.17Zm-1233 0-.19-6.34c5.58-.72 11.62-1.56 14.29-7.13 2.27-4.74 3.11-11.26 3.28-16.89.55-18.25.56-35.68-.06-53.95-.16-4.77-1.09-10.92-3.52-14.42-3.13-4.49-8.01-4.56-13.75-4.48l-.2-6.31c11.71-1.55 22.07-2.66 33.98-3.46l9.94-7.72c1.17-.91 4.91.87 4.81 2.29-.81 10.87-1.71 21.29-1.69 32.07l.1 51.04c.01 6.92.71 14.52 3.03 20.67 2.28 6.03 8.25 7.65 14.69 8.14l-.05 6.47c-11.64-1.29-21.53-2.97-32.34-5.15l-32.31 5.17Z"/>
+          <ellipse cx="2241.44" cy="28.65" rx="17.41" ry="18.1" />
+          <ellipse cx="1501.83" cy="28.65" rx="17.41" ry="18.1" />
+          <ellipse cx="268.84" cy="28.65" rx="17.41" ry="18.1" />
+          <!-- I puntini di sospensione, in ordine da sinistra. Gli accenti qui
+               sopra (cy 28.65) sono lettere e restano fermi. -->
+          <ellipse class="loader-puntino loader-puntino-2" cx="3130.09" cy="173.67" rx="16.15" ry="16.79" />
+          <ellipse class="loader-puntino loader-puntino-3" cx="3190.5" cy="173.67" rx="16.15" ry="16.8" />
+          <ellipse class="loader-puntino loader-puntino-1" cx="3069.9" cy="173.66" rx="16.15" ry="16.79" />
+        </svg>
+
+        <div class="loader-barra">
+          <img class="loader-barra-binario" src="/loader/barra-binario.webp" alt="" />
+          <div class="loader-barra-riempimento"></div>
+        </div>
+
+        <!-- DA FARE: la percentuale sotto la barra, come nella demo. -->
+      </div>
+
+      <span class="loader-sr">Caricamento</span>
+    </div>
+
     <div id="root"></div>
+
+    <script>
+      ;(function () {
+        var el = document.getElementById('loader')
+        if (!el) return
+
+        // L'interruttore vive prima di React, quindi non può stare in leva:
+        // ?loader=off la salta del tutto.
+        if (location.search.indexOf('loader=off') > -1) {
+          el.remove()
+          return
+        }
+
+        // Ogni pezzo entra quando è decodificato, non quando è scaricato:
+        // `decode()` evita che il primo disegno dell'immagine capiti a metà
+        // della dissolvenza, che è il modo tipico in cui uno sprite "scatta".
+        var carta = el.querySelector('.loader-carta')
+        var fondo = new Image()
+        fondo.src = '/layers/muro-carta.webp'
+        var entra = function (nodo) {
+          return function () {
+            nodo.classList.add('is-in')
+          }
+        }
+        ;(fondo.decode ? fondo.decode() : Promise.resolve()).then(entra(carta), entra(carta))
+
+        el.querySelectorAll('.loader-sprite').forEach(function (img) {
+          var mostra = entra(img)
+          if (img.complete) return mostra()
+          img.addEventListener('load', mostra)
+          img.addEventListener('error', mostra)
+        })
+
+        // Testo e barra sono un blocco solo e devono comparire insieme, ma il
+        // testo è SVG inline e non ha un `load` da aspettare: è già lì. Fa
+        // quindi da rimorchio al binario, che è l'unico dei due a scaricarsi.
+        var barra = el.querySelector('.loader-barra')
+        var testo = el.querySelector('.loader-testo')
+        var binario = el.querySelector('.loader-barra-binario')
+        var mostraBarra = function () {
+          barra.classList.add('is-in')
+          testo.classList.add('is-in')
+        }
+        if (binario.complete) mostraBarra()
+        else {
+          binario.addEventListener('load', mostraBarra)
+          binario.addEventListener('error', mostraBarra)
+        }
+
+        // Avanzamento. Finché non c'è il precaricamento vero (ROADMAP §1.2) la
+        // barra non conosce un numero, quindi non ne dichiara nessuno: si
+        // avvicina al 90% e lì rallenta all'infinito, senza mai promettere di
+        // essere arrivata. `progress()` è il gancio per quando il numero vero
+        // esisterà — allora cambia la sorgente, non la barra.
+        var riemp = el.querySelector('.loader-barra-riempimento')
+        var p = 0
+        var meta = 0.9
+        var passo = 0.02
+
+        function avanza() {
+          p += (meta - p) * passo
+          if (meta - p < 0.0005) p = meta
+          riemp.style.setProperty('--p', p.toFixed(4))
+          if (p < 0.9999) requestAnimationFrame(avanza)
+        }
+        requestAnimationFrame(avanza)
+
+        // Durata minima. Serve a due cose: a texture in cache la scena è
+        // pronta in pochi millisecondi e uno splash che lampeggia è peggio di
+        // nessuno splash; e comunque il gatto che dorme vuole il tempo di
+        // essere guardato, altrimenti tanto vale non disegnarlo.
+        var MIN = 1200
+        var FADE = 700 // deve combaciare con la transition qui sopra
+
+        var nato = Date.now()
+        var chiesto = false
+        var tolto = false
+
+        function togli() {
+          if (tolto) return
+          tolto = true
+          el.remove()
+        }
+
+        function esci() {
+          el.classList.add('is-out')
+          el.addEventListener('transitionend', togli)
+          // A scheda in background transitionend non scatta mai: resterebbe un
+          // pannello invisibile a intercettare i click.
+          setTimeout(togli, FADE + 200)
+        }
+
+        window.__loader = {
+          // Gancio per l'avanzamento vero, quando ci sarà: resta sotto al 99%
+          // finché non è `done()` a dire che è finita davvero.
+          progress: function (v) {
+            if (!chiesto) meta = Math.max(meta, Math.min(0.99, v))
+          },
+          done: function () {
+            if (chiesto) return
+            chiesto = true
+            meta = 1
+            passo = 0.14 // la barra chiude in fretta, ma si vede chiudersi
+            // Alla barra serve un momento per arrivare in fondo: uscire mentre
+            // è a metà è il modo più semplice di far sembrare rotto tutto.
+            setTimeout(esci, Math.max(300, MIN - (Date.now() - nato)))
+          },
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

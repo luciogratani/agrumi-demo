@@ -146,9 +146,10 @@ export function useDioramaControls(resetView, rig, transitionActions) {
   }, SHUT)
 
   const wind = useControls('Vento', {
-    // I parametri sono quelli tarati, ma il vento parte spento: la scena ferma
-    // è il riferimento per giudicare allineamento e composizione.
-    enabled: { value: false, label: 'attiva' },
+    // Il vento parte acceso: l'allineamento dei piani è ormai fissato, quindi
+    // la scena da giudicare è quella viva. Si spegne dal pannello quando serve
+    // di nuovo il fermo immagine per la composizione.
+    enabled: { value: true, label: 'attiva' },
     amp: { value: 1.2, min: 0, max: 3, step: 0.05, label: 'ampiezza' },
     ampA: { value: 0.03, min: 0, max: 0.12, step: 0.001, label: 'ampiezza A' },
     ampB: { value: 0.012, min: 0, max: 0.12, step: 0.001, label: 'ampiezza B' },

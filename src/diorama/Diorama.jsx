@@ -1,12 +1,12 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Canvas, useLoader, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import manifest from './manifest.json'
 import { castsShadow, exitFor, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite, { computeGeom } from './Sprite.jsx'
-import Backdrop from './Backdrop.jsx'
+import Backdrop, { coverZoom } from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
 import PivotEditor from './PivotEditor.jsx'
 import Destinations from './Destinations.jsx'
@@ -26,7 +26,7 @@ function CameraRig({ orbit, resetView }) {
 
   const applyCover = useCallback(() => {
     if (!cam.current) return
-    cam.current.zoom = Math.max(size.width / WORLD.w, size.height / WORLD.h)
+    cam.current.zoom = coverZoom(size, WORLD)
     cam.current.updateProjectionMatrix()
   }, [size])
 
@@ -134,6 +134,22 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
   }
 
   return manifest.layers.map((layer, i) => (FOLLOWS[layer.slug] ? null : render(layer, i)))
+}
+
+// Congeda la schermata di caricamento. Sta dentro <Suspense>, quindi monta
+// solo a texture risolte — ma «risolte» vuol dire scaricate, non ancora
+// disegnate: congedare qui scoprirebbe una tela vuota. Aspetta due fotogrammi
+// veri, così quello che si scopre è già la scena.
+function SceneReady() {
+  const visti = useRef(0)
+
+  useFrame(() => {
+    if (visti.current >= 2) return
+    visti.current += 1
+    if (visti.current === 2) window.__loader?.done()
+  })
+
+  return null
 }
 
 // Puntatore su desktop, giroscopio su mobile. Il valore è normalizzato in
@@ -262,9 +278,12 @@ export default function Diorama() {
             gl={{ antialias: false, alpha: false }}
             flat
           >
-            <color attach="background" args={['#7fcdc8']} />
+            {/* Media della carta: il muro copre tutto, questo si vede solo se
+                qualcosa non ha ancora coperto — e allora non si nota. */}
+            <color attach="background" args={['#78b2ac']} />
             <CameraRig orbit={camera.orbit} resetView={resetView} />
             <Suspense fallback={null}>
+              <SceneReady />
               <ShadowPass shadow={shadow} world={WORLD} />
               <Backdrop
                 world={WORLD}

@@ -31,15 +31,15 @@ import { CAT } from './rig'
 // Il fondale resta a 0: è il muro dietro, non si muove mai.
 export const GROUPS = {
   sfondo: { label: '0 · sfondo', depth: 0.0, wind: 0.0, exit: 0.0 },
-  cielo: { label: '· nuvole e uccelli', depth: 1.0, wind: 0.15, exit: 1.39 },
-  albero: { label: '1 · albero', depth: 0.32, wind: 0.25, exit: 0.77 },
-  tronchetto: { label: '2 · tronchetto', depth: 0.32, wind: 0.35, exit: 1.06 },
-  tronco: { label: '3 · tronco orizz.', depth: 0.18, wind: 0.4, exit: 1.0 },
-  g31: { label: '3.1 · foglie e limoni', depth: 0.68, wind: 0.8, exit: 0.95 },
-  gatto: { label: '3.1 · gatto', depth: 0.23, wind: 0.0, exit: 0.86 },
-  g32: { label: '3.2 · foglie e limoni', depth: 0.53, wind: 0.9, exit: 0.65 },
-  locale: { label: '4 · locale e insegna', depth: 0.46, wind: 0.3, exit: 1.19 },
-  g5: { label: '5 · foglie davanti', depth: 0.15, wind: 1.0, exit: 0.69 },
+  cielo: { label: '· nuvole e uccelli', depth: 0.42, wind: 0.19, exit: 1.39 },
+  albero: { label: '1 · albero', depth: 0.2, wind: 0.35, exit: 0.77 },
+  tronchetto: { label: '2 · tronchetto', depth: 0.32, wind: 1.04, exit: 1.06 },
+  tronco: { label: '3 · tronco orizz.', depth: 0.4, wind: 0.38, exit: 1.0 },
+  g31: { label: '3.1 · foglie e limoni', depth: 0.59, wind: 0.37, exit: 0.95 },
+  gatto: { label: '3.1 · gatto', depth: 0.36, wind: 0.0, exit: 0.86 },
+  g32: { label: '3.2 · foglie e limoni', depth: 0.29, wind: 0.31, exit: 0.65 },
+  locale: { label: '4 · locale e insegna', depth: 0.17, wind: 0.05, exit: 1.19 },
+  g5: { label: '5 · foglie davanti', depth: 0.22, wind: 1.0, exit: 0.69 },
 }
 
 // Elementi che **non se ne vanno** con la transizione: restano appesi in alto
