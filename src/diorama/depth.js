@@ -22,23 +22,23 @@ import { CAT } from './rig'
 // dall'inquadratura.
 //
 // Il differenziale non segue la distanza dalla camera ma **l'ordine in cui le
-// cose devono sparire**: il cielo e il locale corrono più del frame (1.39 e
-// 1.19) e se ne vanno per primi, le foglie davanti e quelle di 3.2 restano
-// indietro (0.69 e 0.65) e sono le ultime a lasciare lo schermo. È questo
-// sfalsamento a far leggere il movimento come un diorama che si smonta invece
-// che come un'immagine che scorre.
+// cose devono sparire**: il cielo corre più del frame (1.39) e se ne va per
+// primo, le foglie davanti e quelle di 3.2 restano indietro (0.69 e 0.65) e
+// sono le ultime a lasciare lo schermo. È questo sfalsamento a far leggere il
+// movimento come un diorama che si smonta invece che come un'immagine che
+// scorre.
 //
 // Il fondale resta a 0: è il muro dietro, non si muove mai.
 export const GROUPS = {
   sfondo: { label: '0 · sfondo', depth: 0.0, wind: 0.0, exit: 0.0 },
-  cielo: { label: '· nuvole e uccelli', depth: 0.42, wind: 0.19, exit: 1.39 },
+  cielo: { label: '· nuvole e uccelli', depth: 0.42, wind: 0.69, exit: 1.39 },
   albero: { label: '1 · albero', depth: 0.2, wind: 0.35, exit: 0.77 },
   tronchetto: { label: '2 · tronchetto', depth: 0.32, wind: 1.04, exit: 1.06 },
   tronco: { label: '3 · tronco orizz.', depth: 0.4, wind: 0.38, exit: 1.0 },
   g31: { label: '3.1 · foglie e limoni', depth: 0.59, wind: 0.37, exit: 0.95 },
   gatto: { label: '3.1 · gatto', depth: 0.36, wind: 0.0, exit: 0.86 },
   g32: { label: '3.2 · foglie e limoni', depth: 0.29, wind: 0.31, exit: 0.65 },
-  locale: { label: '4 · locale e insegna', depth: 0.17, wind: 0.05, exit: 1.19 },
+  locale: { label: '4 · locale e insegna', depth: 0.17, wind: 0.05, exit: 0.94 },
   g5: { label: '5 · foglie davanti', depth: 0.22, wind: 1.0, exit: 0.69 },
 }
 
