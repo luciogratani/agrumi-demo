@@ -51,13 +51,23 @@ export function useDioramaControls(resetView, rig, transitionActions) {
 
   // Editor dei perni: con la modalità attiva si clicca sulla scena nel punto
   // di rotazione del pezzo selezionato, invece di indovinare le coordinate.
-  const cat = useControls('Rig gatto', {
+  // Non è solo roba da gatto: anche il tronchetto ruota attorno al suo innesto
+  // sul tronco, e ora che ha un figlio appeso (3-2-sx) il perno gli serve per
+  // non staccarsi col vento. Clic sull'innesto, poi «Esporta JSON» → PIVOTS.
+  const perni = useControls('Perni', {
     editPivots: { value: false, label: 'modifica perni' },
     part: {
       value: CAT.head,
-      options: { testa: CAT.head, coda: CAT.tail },
+      options: {
+        'gatto · testa': CAT.head,
+        'gatto · coda': CAT.tail,
+        tronchetto: '2-tronchetto-alto-sx',
+      },
       label: 'pezzo',
     },
+  }, SHUT)
+
+  const cat = useControls('Rig gatto', {
     // Respiro: l'unica cosa continua di un gatto fermo. Ampiezze minime, il
     // torace si allarga più di quanto si alzi.
     breathe: { value: true, label: 'respiro' },
@@ -243,7 +253,7 @@ export function useDioramaControls(resetView, rig, transitionActions) {
     ]),
   )
 
-  return { viewport, cat, camera, scene, shadow, parallax, wind, traits, transition }
+  return { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition }
 }
 
 // Aree visibili reali (CSS px), già al netto dell'interfaccia del browser.

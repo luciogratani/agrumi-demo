@@ -3,7 +3,7 @@ import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import manifest from './manifest.json'
-import { castsShadow, exitFor, FOLLOWS, groupKeyFor, isHidden, scaleFor } from './depth'
+import { castsShadow, exitFor, FOLLOWS, groupKeyFor, isDuplicate, isHidden, offsetFor, orderFor, scaleFor } from './depth'
 import { useDioramaControls, DioramaPanel, DEVICES } from './controls.jsx'
 import Sprite, { computeGeom } from './Sprite.jsx'
 import Backdrop, { coverZoom } from './Backdrop.jsx'
@@ -96,13 +96,16 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
   const blinkTexture = textures[manifest.layers.findIndex((l) => l.slug === CAT.blink)]
 
   const render = (layer, i, parentPivot) => {
-    if (isHidden(layer)) return null
+    if (isHidden(layer) || isDuplicate(layer)) return null
 
     // `0-sfondo` è la composizione appiattita: si mostra solo come riferimento
     // e non proietta ombra (le sue sono già cotte dentro).
     if (layer.slug === '0-sfondo' && !scene.showFlat) return null
 
-    const geom = computeGeom(layer, WORLD, scaleFor(layer), pivotFor(layer))
+    // Il perno serve col suo slug: questo geom viene passato ai figli come
+    // `parentPivot`, e un padre con perno esplicito (il tronchetto) deve darlo
+    // giusto, altrimenti il figlio si posiziona rispetto al bordo del bbox.
+    const geom = computeGeom(layer, WORLD, scaleFor(layer), pivotFor(layer.slug))
     const groupTraits = traits[groupKeyFor(layer)]
 
     return (
@@ -113,7 +116,7 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
         traits={groupTraits}
         exit={exitFor(layer, groupTraits.exit, linger)}
         world={WORLD}
-        order={i}
+        order={orderFor(layer, i)}
         parallax={parallax}
         transition={transition}
         wind={wind}
@@ -122,6 +125,7 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
         scale={scaleFor(layer)}
         pivot={pivotFor(layer.slug)}
         parentPivot={parentPivot}
+        offset={offsetFor(layer.slug)}
         breathe={layer.slug === CAT.body ? cat.breathe : undefined}
         track={layer.slug === CAT.head ? { ...cat.track, pointer } : undefined}
         idle={layer.slug === CAT.head ? cat.idle : undefined}
@@ -233,7 +237,7 @@ export default function Diorama() {
   // direttamente creerebbe un ciclo. Al primo clic il ref è già popolato.
   const transitionActions = useRef(null)
 
-  const { viewport, cat, camera, scene, shadow, parallax, wind, traits, transition } =
+  const { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition } =
     useDioramaControls(resetView, rig, transitionActions)
   const value = useParallaxInput(parallax)
   const { value: transitionValue, api: transitionApi } = useSceneTransition(transition)
@@ -245,7 +249,7 @@ export default function Diorama() {
   useSceneGestures(
     frame,
     {
-      enabled: transition.gestures && !camera.orbit && !cat.editPivots,
+      enabled: transition.gestures && !camera.orbit && !perni.editPivots,
       invert: transition.invert,
       threshold: transition.threshold,
     },
@@ -333,8 +337,8 @@ export default function Diorama() {
               <PivotEditor
                 world={WORLD}
                 pivots={pivots}
-                part={cat.part}
-                active={cat.editPivots}
+                part={perni.part}
+                active={perni.editPivots}
                 onSet={(slug, pivot) => setPivots((p) => ({ ...p, [slug]: pivot }))}
               />
             </Suspense>

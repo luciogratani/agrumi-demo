@@ -105,6 +105,7 @@ export default function Sprite({
   scale,
   pivot,
   parentPivot,
+  offset,
   children,
   breathe,
   track,
@@ -157,9 +158,16 @@ export default function Sprite({
 
   // Annidato: la posizione è relativa al perno del padre, e vento, parallasse
   // e profondità arrivano da lui — riapplicarli qui li conterebbe due volte.
+  //
+  // `offset` è una correzione di posa fissa (frazioni di tela, x→destra,
+  // y→giù): la si somma alla posa base, così il gruppo — e con lui i figli
+  // annidati, che ereditano la traslazione — si accosta di pochi pixel. Non va
+  // nel perno passato ai figli, che resta il punto vero dell'immagine.
   const nested = Boolean(parentPivot)
-  const baseX = nested ? geom.px - parentPivot.px : geom.px
-  const baseY = nested ? geom.py - parentPivot.py : geom.py
+  const ox = offset ? offset.x * world.w : 0
+  const oy = offset ? offset.y * world.h : 0
+  const baseX = (nested ? geom.px - parentPivot.px : geom.px) + ox
+  const baseY = (nested ? geom.py - parentPivot.py : geom.py) - oy
 
   // Stato dell'inseguimento e del blink fra un fotogramma e l'altro.
   const state = useRef({

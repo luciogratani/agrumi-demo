@@ -42,28 +42,12 @@ export const GROUPS = {
   g5: { label: '5 · foglie davanti', depth: 0.22, wind: 1.0, exit: 0.69 },
 }
 
-// Elementi che **non se ne vanno** con la transizione: restano appesi in alto
-// e fanno da cornice alla carta della destinazione.
-//
-// Sono foglie e limoni del gruppo 5, già tutti fra y 0.04 e 0.18 — cioè già in
-// alto nella tela, il che li rende cornice senza doverli spostare. Nessun
-// asset nuovo e nessun costo di VRAM: sono texture già caricate, riposizionate.
-//
-// Stanno *dietro* alla carta, che è DOM sopra il canvas: emergono da sotto il
-// foglio come se il foglio fosse stato infilato sotto il ramo. Continuano anche
-// a ondeggiare col vento (il gruppo 5 ha `wind: 1.0`), quindi la scena di
-// arrivo non è ferma.
-//
-// Il numero è un **fattore relativo**, moltiplicato per il valore unico del
-// pannello: si tara una manopola sola e la spaziatura fra loro resta.
-export const LINGER = {
-  '5-foglia-2': 0.6,
-  '5-foglia-nuvola-sx': 0.8,
-  '5-layer-10': 1.0,
-  '5-foglie-nuvola-dx': 0.6,
-  '5-foglia': 1.0,
-  '5-limone': 1.4,
-}
+// Cornice della transizione: **superata**. In origine alcune foglie del gruppo
+// 5 restavano appese in alto a incorniciare la carta della destinazione; ora
+// quelle foglie sono asset veri, parentati all'albero (vedi FOLLOWS), e la
+// cornice non si usa più. La tabella resta vuota: l'infrastruttura (`exitFor`,
+// la manopola `linger` del pannello) è inerte e si può togliere in una pulizia.
+export const LINGER = {}
 
 // Corsa d'uscita di un layer: quella del suo gruppo, se non è di cornice.
 export function exitFor(layer, groupExit, linger) {
@@ -94,12 +78,65 @@ export function scaleFor(layer) {
   return SCALE[layer.slug] ?? 1
 }
 
+// Correzioni di posizione su singoli layer, in frazioni di tela come le x/y del
+// manifest: x positivo = destra, y positivo = giù. Servono quando un ritaglio va
+// accostato di pochi pixel rispetto a dov'è stato esportato.
+//
+// Il tronchetto in alto a sinistra, anche da fermo, non tocca del tutto il
+// tronco: l'innesto resta staccato di un filo. Lo si sposta un po' verso il
+// tronco. Lo spostamento agisce sul *gruppo*, quindi trascina anche il figlio
+// appeso (3-2-sx) — «lui e i figli» in un valore solo. Tarare a occhio: con la
+// HMR di Vite il salvataggio si vede subito.
+const OFFSET = {
+  '2-tronchetto-alto-sx': { x: 0.008, y: 0.008 },
+}
+
+export function offsetFor(slug) {
+  return OFFSET[slug] ?? null
+}
+
 // Layer presenti negli export ma non visibili di partenza: la testa a occhi
 // chiusi è il fotogramma del blink, la mostra il rig del gatto quando serve.
 export const HIDDEN = [/occhi-chiusi/]
 
 export function isHidden(layer) {
   return HIDDEN.some((re) => re.test(layer.slug))
+}
+
+// Doppioni di copertura: ritagli del gruppo 5 messi davanti solo per stare
+// sopra le nuvole (che nel PSD sono nel gruppo 4, disegnato davanti, ma nella
+// finzione sono lontanissime). Non sono foglie vere — l'originale è già nella
+// chioma — quindi galleggiavano nel cielo con fase propria, staccati da tutto.
+//
+// Ora le nuvole passano dietro la chioma (vedi ORDER), quindi la copertura non
+// serve più: questi non si disegnano affatto, una draw call in meno ciascuno.
+// I file .webp restano su disco: per recuperarne anche la VRAM andrebbero tolti
+// dalla pipeline che genera il manifest.
+export const DUPLICATI = new Set([
+  '5-foglia-2',
+  '5-foglia-nuvola-sx',
+  '5-layer-10',
+  '5-layer-11',
+  '5-layer-12',
+  '5-foglie-nuvola-dx',
+])
+
+export function isDuplicate(layer) {
+  return DUPLICATI.has(layer.slug)
+}
+
+// Forzature dell'ordine di disegno, per slug. Di regola l'ordine è la posizione
+// nel manifest, ma le nuvole vanno spostate *dietro* la chioma: nella finzione
+// sono lontane, e tenerle davanti obbligava a duplicare le foglie per coprirle.
+// Un valore < dell'indice dell'albero (1) le mette dietro tutto il verde, ma
+// pur sempre davanti al muro di fondo (renderOrder -20).
+const ORDER = {
+  '4-nuvola-dx': 0.5,
+  '4-nuvola-sx': 0.5,
+}
+
+export function orderFor(layer, index) {
+  return ORDER[layer.slug] ?? index
 }
 
 // Layer solidali a un altro: vengono disegnati dentro il gruppo del padre,
@@ -117,6 +154,27 @@ export const FOLLOWS = {
   [CAT.body]: '3-tronco-orizzontale',
   [CAT.head]: '3-tronco-orizzontale',
   [CAT.tail]: '3-tronco-orizzontale',
+  // Foglie e limoni della chioma: asset veri appesi all'albero, non doppioni di
+  // copertura. Da soli avevano fase propria e ondeggiavano scollegati dal ramo;
+  // ancorati inclinano col vento del padre e restano attaccati. Il renderOrder
+  // resta quello del manifest, quindi si disegnano al loro posto nella pila.
+  //
+  // Foglia e limone poggiati sul ramo orizzontale, sotto il gatto: stesso ramo
+  // del gatto, così si muovono insieme a lui.
+  '3-1-foglia': '3-tronco-orizzontale',
+  '3-1-limone': '3-tronco-orizzontale',
+  // Gruppo 3.2. `sx` sta sul tronchetto in alto a sinistra — segue quel ramo,
+  // non tutto l'albero — quindi diventa figlio del tronchetto (che per questo
+  // ha bisogno di un perno all'innesto, vedi PIVOTS in rig.js). Gli altri due
+  // stanno sui rami principali dell'albero.
+  '3-2-sx': '2-tronchetto-alto-sx',
+  '3-2-dx': '1-albero',
+  '3-2-dxx': '1-albero',
+  // Foglia e limone in cima a destra: erano tenuti liberi per la vecchia
+  // cornice della transizione (ora superata), quindi tornano foglie normali
+  // appese all'albero.
+  '5-foglia': '1-albero',
+  '5-limone': '1-albero',
 }
 
 // Layer che non proiettano ombra, pur avendo una profondità.
