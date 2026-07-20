@@ -256,8 +256,8 @@ export default function Diorama() {
   introActions.current = introApi
 
   // Congedo del loader e avvio dell'intro nello stesso istante: il diorama sta
-  // già nella posa alta sotto la schermata di caricamento, che sfumando scopre
-  // la discesa. Farlo qui, non dentro <Suspense>, tiene stabile il riferimento.
+  // già nella posa del booking sotto la schermata di caricamento, che sfumando
+  // scopre la risalita. Farlo qui, non dentro <Suspense>, tiene stabile il ref.
   const reveal = useCallback(() => {
     window.__loader?.done()
     introApi.play()
@@ -272,6 +272,7 @@ export default function Diorama() {
       enabled: transition.gestures && !camera.orbit && !perni.editPivots,
       invert: transition.invert,
       threshold: transition.threshold,
+      introPlaying: introApi.playing,
     },
     transitionActions,
   )

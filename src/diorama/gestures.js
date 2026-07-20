@@ -13,7 +13,7 @@ import { useEffect } from 'react'
 // Il gesto è discreto, non continuo: supera la soglia e parte una transizione
 // intera. Trascinare il diorama a metà strada sarebbe più ricco, ma va deciso
 // dopo aver visto se il movimento in sé funziona.
-export function useSceneGestures(ref, { enabled, invert, threshold }, actions) {
+export function useSceneGestures(ref, { enabled, invert, threshold, introPlaying }, actions) {
   useEffect(() => {
     const el = ref.current
     if (!enabled || !el) return
@@ -30,7 +30,10 @@ export function useSceneGestures(ref, { enabled, invert, threshold }, actions) {
     // significa sempre e solo navigazione fra gli stati del sito.
     const fire = (dir) => {
       const t = actions.current
-      if (!t || locked || t.busy.current) return
+      // Durante l'intro i gesti restano fermi: l'entrata non è interrompibile, e
+      // sommarle una transizione darebbe due movimenti sovrapposti. Come `busy`,
+      // il ref si legge al volo — quando l'intro finisce il gesto dopo passa.
+      if (!t || locked || t.busy.current || introPlaying?.current) return
       locked = true
       accum = 0
       t.go(invert ? -dir : dir)
@@ -86,5 +89,5 @@ export function useSceneGestures(ref, { enabled, invert, threshold }, actions) {
       el.removeEventListener('touchend', onTouchEnd)
       el.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [ref, enabled, invert, threshold, actions])
+  }, [ref, enabled, invert, threshold, introPlaying, actions])
 }
