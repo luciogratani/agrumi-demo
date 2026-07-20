@@ -98,6 +98,7 @@ export default function Sprite({
   order,
   parallax,
   transition,
+  intro,
   exit,
   wind,
   zSpread,
@@ -252,6 +253,14 @@ export default function Sprite({
       // gruppo, perché loro restano in campo mentre il resto esce.
       if (transition) {
         dy += transition.value.current.p * exit * transition.strength * world.h
+      }
+
+      // Intro: il ritorno da booking a hero rigiocato all'ingresso. Stesso
+      // differenziale `exit` e stessa corsa (`distance` = la corsa della
+      // transizione), ma con un valore proprio, così non muove le destinazioni.
+      // A regime `i` è 0 e il termine sparisce.
+      if (intro) {
+        dy += intro.value.current.i * exit * intro.distance * world.h
       }
 
       g.position.x = baseX + dx

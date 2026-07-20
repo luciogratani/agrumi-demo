@@ -27,7 +27,7 @@ const groupSchema = Object.fromEntries(
   ]),
 )
 
-export function useDioramaControls(resetView, rig, transitionActions) {
+export function useDioramaControls(resetView, rig, transitionActions, introActions) {
   // I valori correnti, per il bottone di export: leggerli dallo state di React
   // dentro la callback darebbe una closure vecchia.
   const latest = useRef({})
@@ -211,6 +211,16 @@ export function useDioramaControls(resetView, rig, transitionActions) {
     'Sali (menu)': button(() => transitionActions?.current?.go(1)),
   }, SHUT)
 
+  // Entrata della hero al caricamento: ripete il ritorno da booking a hero, ma
+  // come intro. Riusa corsa, durata ed ease della transizione (è «lo stesso
+  // movimento»), quindi qui restano solo l'interruttore e da dove parte: `da`
+  // = -1 è la posa piena del booking, verso 0 un'entrata più corta.
+  const intro = useControls('Intro', {
+    enabled: { value: true, label: 'attiva' },
+    from: { value: -1, min: -1, max: 0, step: 0.01, label: 'da (posa)' },
+    'Rigioca intro': button(() => introActions?.current?.play()),
+  }, SHUT)
+
   const groups = useControls('Piani', groupSchema, SHUT)
 
   useControls({
@@ -253,7 +263,7 @@ export function useDioramaControls(resetView, rig, transitionActions) {
     ]),
   )
 
-  return { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition }
+  return { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition, intro }
 }
 
 // Aree visibili reali (CSS px), già al netto dell'interfaccia del browser.

@@ -10,7 +10,7 @@ import Backdrop, { coverZoom } from './Backdrop.jsx'
 import ShadowPass from './ShadowPass.jsx'
 import PivotEditor from './PivotEditor.jsx'
 import Destinations from './Destinations.jsx'
-import { useSceneTransition } from './transition'
+import { useSceneTransition, useIntro } from './transition'
 import { useSceneGestures } from './gestures'
 import { CAT, PIVOTS, pivotFor } from './rig'
 
@@ -60,7 +60,7 @@ function CameraRig({ orbit, resetView }) {
   )
 }
 
-function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, shadow, cat }) {
+function Layers({ parallax, transition, intro, linger, wind, traits, zSpread, scene, shadow, cat }) {
   // Puntatore normalizzato sul canvas, gia' mantenuto aggiornato da R3F.
   // Vale solo mentre il puntatore e' sulla scena: il gatto guarda chi lo
   // guarda, e smette quando ci si allontana.
@@ -119,6 +119,7 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
         order={orderFor(layer, i)}
         parallax={parallax}
         transition={transition}
+        intro={intro}
         wind={wind}
         zSpread={zSpread}
         shadow={castsShadow(layer) ? shadow : { ...shadow, enabled: false }}
@@ -144,13 +145,13 @@ function Layers({ parallax, transition, linger, wind, traits, zSpread, scene, sh
 // solo a texture risolte — ma «risolte» vuol dire scaricate, non ancora
 // disegnate: congedare qui scoprirebbe una tela vuota. Aspetta due fotogrammi
 // veri, così quello che si scopre è già la scena.
-function SceneReady() {
+function SceneReady({ onReveal }) {
   const visti = useRef(0)
 
   useFrame(() => {
     if (visti.current >= 2) return
     visti.current += 1
-    if (visti.current === 2) window.__loader?.done()
+    if (visti.current === 2) onReveal()
   })
 
   return null
@@ -236,12 +237,31 @@ export default function Diorama() {
   // bisogno di durata ed ease che il pannello stesso produce, e leggerli
   // direttamente creerebbe un ciclo. Al primo clic il ref è già popolato.
   const transitionActions = useRef(null)
+  const introActions = useRef(null)
 
-  const { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition } =
-    useDioramaControls(resetView, rig, transitionActions)
+  const { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition, intro } =
+    useDioramaControls(resetView, rig, transitionActions, introActions)
   const value = useParallaxInput(parallax)
   const { value: transitionValue, api: transitionApi } = useSceneTransition(transition)
   transitionActions.current = transitionApi
+  // L'intro riusa corsa ed ease della transizione — è lo stesso movimento del
+  // ritorno da booking — ma di proposito un 10% più lenta: all'ingresso il
+  // diorama si prende un attimo in più per posarsi. Resta agganciata alla durata
+  // della transizione, quindi il rapporto tiene se quella cambia.
+  const { value: introValue, api: introApi } = useIntro({
+    ...intro,
+    duration: transition.duration * 1.1,
+    ease: transition.ease,
+  })
+  introActions.current = introApi
+
+  // Congedo del loader e avvio dell'intro nello stesso istante: il diorama sta
+  // già nella posa alta sotto la schermata di caricamento, che sfumando scopre
+  // la discesa. Farlo qui, non dentro <Suspense>, tiene stabile il riferimento.
+  const reveal = useCallback(() => {
+    window.__loader?.done()
+    introApi.play()
+  }, [introApi])
 
   // I gesti si spengono quando la scena serve ad altro: con l'orbit control il
   // trascinamento è della camera, e in modifica perni il clic piazza un perno.
@@ -287,7 +307,7 @@ export default function Diorama() {
             <color attach="background" args={['#78b2ac']} />
             <CameraRig orbit={camera.orbit} resetView={resetView} />
             <Suspense fallback={null}>
-              <SceneReady />
+              <SceneReady onReveal={reveal} />
               <ShadowPass shadow={shadow} world={WORLD} />
               <Backdrop
                 world={WORLD}
@@ -296,6 +316,7 @@ export default function Diorama() {
               <Layers
                 parallax={{ ...parallax, value }}
                 transition={{ value: transitionValue, strength: transition.strength }}
+                intro={{ value: introValue, distance: transition.strength }}
                 linger={{ enabled: transition.linger, exit: transition.lingerExit }}
                 wind={wind}
                 traits={traits}

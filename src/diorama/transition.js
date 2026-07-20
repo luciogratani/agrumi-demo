@@ -88,3 +88,60 @@ export function useSceneTransition({ duration, ease }) {
 
   return { value, api }
 }
+
+// Intro della hero: ripete il movimento del ritorno **da booking a hero**, ma
+// come entrata al caricamento. Il diorama parte nella posa del booking (sceso,
+// in basso) e risale al riposo, giocato sullo stesso differenziale di `exit` e
+// con la stessa corsa ed ease della transizione — così è essenzialmente lo
+// stesso movimento. La durata la decide il chiamante (all'ingresso è quella
+// della transizione, di poco allungata).
+//
+// Non tocca il valore `p` della transizione, ma ne usa uno suo (`i`): le
+// destinazioni reagiscono solo a `p`, quindi durante l'intro il pannello del
+// booking resta nascosto e l'entrata non rivela nulla di ciò che verrà. `i` va
+// da `from` (default -1, la posa piena del booking) a 0. Stesso schema del
+// resto: GSAP anima il numero, `useFrame` lo legge.
+export function useIntro({ enabled, from, duration, ease }) {
+  const value = useRef({ i: enabled ? from : 0 })
+  // In corso: i gesti la interrogano per non accavallarsi con l'entrata.
+  const playing = useRef(false)
+
+  const cfg = useRef({ enabled, from, duration, ease })
+  cfg.current = { enabled, from, duration, ease }
+
+  const api = useMemo(
+    () => ({
+      // Chiamata al congedo del loader (SceneReady): prima di allora `i` resta
+      // a 1, cioè il diorama è già nella posa alta sotto la schermata di
+      // caricamento, e non si vede il salto dalla posa di riposo.
+      play: () => {
+        const { enabled, from, duration, ease } = cfg.current
+        if (!enabled) {
+          value.current.i = 0
+          return
+        }
+        const ridotto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        value.current.i = from
+        playing.current = true
+        gsap.to(value.current, {
+          i: 0,
+          duration: ridotto ? 0.01 : duration,
+          ease,
+          overwrite: true,
+          onComplete: () => {
+            playing.current = false
+          },
+        })
+      },
+      playing,
+    }),
+    [],
+  )
+
+  useEffect(() => {
+    const target = value.current
+    return () => gsap.killTweensOf(target)
+  }, [])
+
+  return { value, api }
+}
