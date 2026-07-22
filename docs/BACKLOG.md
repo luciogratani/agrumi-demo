@@ -98,6 +98,42 @@ detta il form, non il contrario. Farlo prima significa rifarlo dopo.
 
 ## Parcheggiate — decise, manca il momento
 
+### «Riduci movimento» spegne la transizione invece di ammorbidirla
+
+Con `prefers-reduced-motion` attivo, `transition.js` porta la tween a **0.01 s**
+— un fotogramma. Non è un bug, è quello che gli abbiamo chiesto, ma è chiesto
+male: il passaggio fra i tre stati diventa istantaneo e **non si capisce che è
+successo qualcosa**. Verificato su iPhone il 22/07/2026, con quell'impostazione
+accesa; su Android, dove era spenta, tutto normale.
+
+Il rimedio giusto **non è accorciare il viaggio**: quell'impostazione esiste per
+il malessere vestibolare, e mezzo diorama che attraversa lo schermo in mezzo
+secondo è semmai peggio che in due. È **togliere il viaggio e mettere una
+dissolvenza**: il diorama resta fermo e la carta compare sopra di lui. Non
+tradisce il progetto, ne è la versione ferma — la carta si appoggia già sul
+mondo invece di sostituirlo (vedi [`interfaccia.md`](interfaccia.md)).
+
+Tocca `transition.js` (durata e un flag esposto), `Diorama.jsx` (corsa a 0),
+`Destinations.jsx` (opacità al posto della traslazione) e l'intro, che è lo
+stesso movimento e ha lo stesso problema.
+
+Rinviato il 22/07/2026: decisione dell'utente, si riprende più avanti.
+
+### `ShadowPass` è un punto singolo di rottura
+
+Gira a `useFrame` priorità 1, e questo **disattiva il rendering automatico di
+R3F**: tutta l'immagine dipende da una sola riga (`ShadowPass.jsx:168`). Se
+quella lancia un'eccezione, React, GSAP e gli `useFrame` degli sprite
+continuano a girare ma **sul canvas non cambia più un pixel** — il diorama
+diventa una fotografia con le carte che ci scorrono lisce sopra.
+
+Non è un problema osservato, è una fragilità strutturale trovata leggendo il
+codice mentre si indagava sul caso iPhone. Il ciclo non muore (R3F prenota la
+rAF successiva prima di eseguire i subscriber, quindi rilancia e riempie la
+console), ma il sito resta immobile. Rimedio: un `try/catch` attorno al passo di
+composizione che, se qualcosa va storto, ricada sul rendering semplice — meglio
+senza ombre che fermo.
+
 ### Peso in memoria (misurato, non fatto)
 
 29 sprite, 7.2 MP, **27.4 MB di VRAM** (36.4 coi mipmap). I file scaricati sono
