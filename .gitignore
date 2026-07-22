@@ -3,7 +3,7 @@ dist/
 .DS_Store
 *.local
 
-# Sorgenti pesanti degli asset: i PNG originali stanno fuori dal repo
-# (in `scena 3d/`) e ciò che serve alla scena è rigenerabile con
-# `node tools/prep-layers.mjs`.
-asset-lavoro/raw/
+# I sorgenti pesanti degli asset stanno tutti **fuori dal repo**, accanto a
+# esso: `../scena 3d/` per i PSD e `../asset-lavoro/` per i PNG della prima
+# scena. Ciò che serve al sito è rigenerabile da lì con `tools/prep-*.mjs`.
+asset-lavoro/

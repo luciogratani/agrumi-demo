@@ -22,11 +22,15 @@ commit. Il perché sta nei documenti di sistema, non qui.
 - `tools/prep-booking.mjs` converte gli export del PSD (37 MB) in
   `public/ui/booking/` (155 kB) e ne salva l'impaginato in `booking-ui.json`, in
   frazioni della card. Le tre righe sono un solo file.
+- Il repo va su GitHub, pubblico, e i **sorgenti di lavoro escono da git**: i
+  PNG della prima scena stanno ora in `../asset-lavoro/`, accanto al repo come
+  già i PSD. Erano 24 MB su 25, cioè sedici volte il sito. Tolti anche dalla
+  storia, perché su un repo pubblico un file cancellato in un commit resta
+  scaricabile da tutti quelli prima.
 - La hero passa **sulla home**: cancellate la prima scena a 5 piani
   (`src/components/`, `src/scene/`) e la route `#/diorama`, e con loro il router
-  a hash. I PNG di quella scena escono da `public/` (24 MB che finivano nella
-  build) e restano in `asset-lavoro/scena-vecchia/`, da cui `prep-layers.mjs`
-  prende ancora il limone della CTA. `a48f2a0`
+  a hash. I PNG di quella scena escono da `public/`: 24 MB che finivano nella
+  build. `prep-layers.mjs` ne prende ancora il limone della CTA. `a48f2a0`
 - La documentazione si sposta in `docs/`: changelog, backlog e un documento per
   parte del sito, al posto di `ROADMAP.md` e `SCENA-3D.md`.
 

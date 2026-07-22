@@ -181,9 +181,10 @@ const UI_OUT = path.resolve(process.cwd(), 'public/ui')
 await mkdir(UI_OUT, { recursive: true })
 
 // Il limone della CTA viene ancora dagli elementi della prima scena: è l'unico
-// pezzo di quel materiale che serve, e sta fuori da `public/` perché quei PNG
-// non devono finire nella build.
-const CTA_SRC = path.resolve(process.cwd(), 'asset-lavoro/scena-vecchia/el/limone.png')
+// pezzo di quel materiale che serve. Sta **fuori dal repo**, accanto a esso,
+// come i layer del PSD: sono sorgenti di lavoro, pesano quanto tutto il resto
+// messo insieme e non hanno niente da fare in un repo pubblico.
+const CTA_SRC = '/Users/lucio/Desktop/agrumi/asset-lavoro/scena-vecchia/el/limone.png'
 const ctaBox = await alphaBBox(CTA_SRC)
 // 512 px bastano: il bottone sta sotto i 200 px CSS, quindi copre anche i
 // display a DPR 3 senza sprecare banda su grana di carta che nessuno vedrà.
