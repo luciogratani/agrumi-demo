@@ -48,21 +48,23 @@ export default function Destinations({ actions }) {
     <>
       <div ref={menu} className="scene-panel">
         <section className="scene-card">
-          <div className="bk bk--esito">
+          <div className="menu">
             <p className="bk-occhiello">La cucina</p>
             <h2 className="bk-titolo">Menu</h2>
             <p className="bk-nota">Segnaposto — il test è sul booking.</p>
-            <button type="button" className="bk-azione" onClick={close}>
+            <button type="button" className="menu-azione" onClick={close}>
               Torna alla scena
             </button>
           </div>
         </section>
       </div>
 
+      {/* Il booking non ha una `.scene-card` attorno: la sua carta **è** un
+          asset, foglio ritagliato e ombra sua, quindi non va appoggiata su un
+          secondo rettangolo che avrebbe bordi e ombra propri. Il menu, che è
+          ancora segnaposto, usa la carta CSS finché non avrà i suoi. */}
       <div ref={booking} className="scene-panel">
-        <section className="scene-card">
-          <Booking onClose={close} />
-        </section>
+        <Booking onClose={close} />
       </div>
     </>
   )

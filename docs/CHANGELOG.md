@@ -5,6 +5,23 @@ commit. Il perché sta nei documenti di sistema, non qui.
 
 ## 2026-07-22
 
+- **Booking su carta vera**: foglio, tre righe e barra gialla sono sagome
+  ritagliate, impaginate dal manifest. Le tre scelte si vedono tutte insieme al
+  posto dei quattro passi con barra di avanzamento, e ogni riga si apre sul suo
+  passo nella stessa zona. Icone segnaposto in `icone.jsx`, in attesa dei
+  vettoriali e del font.
+- **Bottoncini d'angolo** su piastrella di carta: chiudere a destra, tornare
+  indietro a sinistra, storti di un angolo diverso l'uno dall'altro, con croce e
+  freccia disegnate ad archi. `prep-booking.mjs` impara i «pezzi sciolti», quelli
+  generati fuori dalla tela della card.
+- Cartella **Ombre carta** nel pannello: le ombre del booking non sono negli
+  asset, si tarano a occhio e arrivano al CSS come variabili, dallo stesso
+  angolo di luce della scena. Valori tarati a pannello (224°, 14.5, 4 px, 40%)
+  già a default. La riga specchiata riceve l'ombra con la X ribaltata, che
+  altrimenti `scaleX(-1)` le faceva cadere dal lato sbagliato.
+- `tools/prep-booking.mjs` converte gli export del PSD (37 MB) in
+  `public/ui/booking/` (155 kB) e ne salva l'impaginato in `booking-ui.json`, in
+  frazioni della card. Le tre righe sono un solo file.
 - La hero passa **sulla home**: cancellate la prima scena a 5 piani
   (`src/components/`, `src/scene/`) e la route `#/diorama`, e con loro il router
   a hash. I PNG di quella scena escono da `public/` (24 MB che finivano nella

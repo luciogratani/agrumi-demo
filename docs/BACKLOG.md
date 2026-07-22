@@ -65,10 +65,21 @@ diorama di carta senza fare il verso all'illustrazione.
 
 ### 2.1 Componenti reali: menu e form di prenotazione
 
-Il booking è un **prototipo** a quattro passi: stato locale, non invia niente.
-Serviva a verificare che la carta reggesse un compito vero — regge. Il menu è
-ancora un segnaposto, ed è lì che vale la pena spendere l'azzardo visivo, perché
-non c'è niente da compilare.
+Il booking ha ora la sua carta vera — foglio, righe e barra ritagliati dal PSD,
+impaginati dal manifest — ma resta un **prototipo di interfaccia**: stato locale,
+non invia niente. Quello che gli manca, in ordine:
+
+- **le icone in vettoriale.** Adesso ce ne sono tre segnaposto in `icone.jsx`,
+  disegnate su griglia 24 in `currentColor`: sostituirle è cambiare il contenuto
+  dei tre `<svg>` e nient'altro;
+- **il font** (§2.0), che è la cosa che cambierà di più come si legge la carta;
+- **gli elementi di contesto** attorno alla carta — rami, sgabello, gatto — che
+  vanno nel diorama come Sprite col loro vento e la loro corsa d'ingresso, non
+  nel DOM: la carta è il confine fra il mondo e l'interfaccia;
+- l'invio vero, che dipende da §2.2.
+
+Il menu è ancora un segnaposto, ed è lì che vale la pena spendere l'azzardo
+visivo, perché non c'è niente da compilare.
 
 **È il punto del sito.** Sta dopo la fase 1 non perché conti meno, ma perché è un
 registro creativo diverso — tipografia, gerarchia, flusso di compilazione — e

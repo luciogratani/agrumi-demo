@@ -148,6 +148,27 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
     color: { value: '#000000', label: 'colore' },
   }, SHUT)
 
+  // Le ombre della carta del booking. Non passano dal buffer del diorama: la
+  // carta sta nel DOM, quindi le disegna il CSS con `drop-shadow`. Restano però
+  // la stessa luce di tutto il resto — da destra in alto — e si tarano a occhio
+  // di qui come ogni altro valore, invece di essere scritte a mano nel foglio
+  // di stile. L'angolo parte uguale a quello delle ombre della scena.
+  const paper = useControls('Ombre carta', {
+    angle: { value: 224, min: 0, max: 360, step: 1, label: 'direzione (°)' },
+    distance: { value: 14.5, min: 0, max: 60, step: 0.5, label: 'distanza (px)' },
+    // Poca: la carta è ritagliata, non stampata, e un'ombra morbida la
+    // farebbe galleggiare invece che appoggiare.
+    blur: { value: 4, min: 0, max: 80, step: 1, label: 'sfocatura (px)' },
+    opacity: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'opacità' },
+    // Righe e barra sono appoggiate **sul** foglio, non sul fondo: stessa luce,
+    // ma molto più vicine, quindi ombra corta e netta. Una frazione sola invece
+    // di una seconda terna di valori da tenere in accordo con la prima.
+    pieces: { value: 0.47, min: 0, max: 1, step: 0.01, label: 'pezzi · frazione' },
+    // Premendo, il pezzo si schiaccia contro il foglio.
+    pressed: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'premuto · frazione' },
+    color: { value: '#000000', label: 'colore' },
+  }, SHUT)
+
   const parallax = useControls('Parallasse', {
     enabled: { value: false, label: 'attiva' },
     strength: { value: 0.06, min: 0, max: 0.3, step: 0.005, label: 'intensità' },
@@ -225,12 +246,13 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
 
   useControls({
     'Esporta JSON': button(() => {
-      const { parallax: p, wind: w, groups: g, scene: s, shadow: sh, cat: c, transition: tr } = latest.current
+      const { parallax: p, wind: w, groups: g, scene: s, shadow: sh, cat: c, transition: tr, paper: pa } = latest.current
       const out = {
         pivots: rig?.current?.pivots,
         cat: c,
         scene: s,
         shadow: sh,
+        paper: pa,
         parallax: p,
         wind: w,
         transition: tr,
@@ -253,7 +275,7 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
     }),
   })
 
-  latest.current = { parallax, wind, groups, scene, shadow, cat, transition }
+  latest.current = { parallax, wind, groups, scene, shadow, cat, transition, paper }
 
   // Traits risolti per gruppo, nella forma che consumano gli Sprite.
   const traits = Object.fromEntries(
@@ -263,7 +285,7 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
     ]),
   )
 
-  return { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition, intro }
+  return { viewport, cat, perni, camera, scene, shadow, paper, parallax, wind, traits, transition, intro }
 }
 
 // Aree visibili reali (CSS px), già al netto dell'interfaccia del browser.

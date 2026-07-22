@@ -17,6 +17,38 @@ import { CAT, PIVOTS, pivotFor } from './rig'
 // Mondo in unità normalizzate: altezza tela = 1, larghezza = aspect del PSD.
 const WORLD = { w: manifest.canvas.aspect, h: 1 }
 
+// Le ombre della carta del booking, dal pannello al CSS. La carta sta nel DOM
+// e non nel buffer delle ombre della scena, ma la luce è **la stessa**: si usa
+// lo stesso angolo, con la sola conversione che serve — in three la Y sale, in
+// CSS scende, quindi il seno cambia segno.
+//
+// Un solo giro di valori genera le ombre: il foglio appoggiato sul cielo, i
+// pezzi appoggiati sul foglio (più vicini, quindi una frazione), e il pezzo
+// premuto (schiacciato contro il foglio). Tenerle legate evita che a furia di
+// ritocchi la carta finisca illuminata da tre luci diverse.
+//
+// Le varianti «specchiate» servono alla riga che viene ribaltata con
+// `scaleX(-1)` per non ripetere lo stesso disegno tre volte: lo specchio
+// arriva **dopo** il filtro e si porta dietro anche l'ombra, che finirebbe a
+// cadere dal lato sbagliato. Le si dà l'offset già ribaltato, così dopo lo
+// specchio torna dov'è quella di tutti gli altri.
+function ombreCarta({ angle, distance, blur, opacity, pieces, pressed, color }) {
+  const rad = (angle * Math.PI) / 180
+  const tinta = `color-mix(in srgb, ${color} ${(opacity * 100).toFixed(1)}%, transparent)`
+  // In three la Y sale, in CSS scende: il seno cambia segno.
+  const ombra = (k, verso = 1) =>
+    `${(Math.cos(rad) * distance * k * verso).toFixed(2)}px ${(-Math.sin(rad) * distance * k).toFixed(2)}px ` +
+    `${(blur * Math.max(k, 0.25)).toFixed(2)}px ${tinta}`
+
+  return {
+    '--ombra-foglio': ombra(1),
+    '--ombra-pezzo': ombra(pieces),
+    '--ombra-premuta': ombra(pressed),
+    '--ombra-pezzo-specchiata': ombra(pieces, -1),
+    '--ombra-premuta-specchiata': ombra(pressed, -1),
+  }
+}
+
 // Inquadra la tela in "cover": riempie sempre il viewport, ritagliando il lato
 // che avanza. Su 9:16 il PSD (3:4) viene tagliato ai fianchi, non lascia bordi.
 function CameraRig({ orbit, resetView }) {
@@ -239,7 +271,7 @@ export default function Diorama() {
   const transitionActions = useRef(null)
   const introActions = useRef(null)
 
-  const { viewport, cat, perni, camera, scene, shadow, parallax, wind, traits, transition, intro } =
+  const { viewport, cat, perni, camera, scene, shadow, paper, parallax, wind, traits, transition, intro } =
     useDioramaControls(resetView, rig, transitionActions, introActions)
   const value = useParallaxInput(parallax)
   const { value: transitionValue, api: transitionApi } = useSceneTransition(transition)
@@ -294,6 +326,7 @@ export default function Diorama() {
           style={{
             ...(device ? { '--vw': `${device.w}px`, '--vh': `${device.h}px` } : null),
             '--card-inset': `${transition.inset}px`,
+            ...ombreCarta(paper),
           }}
         >
           <Canvas

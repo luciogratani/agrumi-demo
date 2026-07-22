@@ -10,6 +10,21 @@
   --carta: #f0e2c9;
 
   --ombra-carta: -6px 10px 24px rgba(17, 30, 45, 0.3);
+  /* Le ombre della carta del booking. Negli asset non sono disegnate — sono
+     qui, e le riscrive la cartella «Ombre carta» del pannello, da cui questi
+     valori arrivano già tarati (direzione 224°, distanza 14.5, sfocatura 4,
+     opacità 40%). La luce è quella di tutta la scena, da destra in alto,
+     quindi l'ombra cade verso sinistra in basso; poca sfocatura perché la
+     carta è ritagliata e appoggiata, non stampata.
+
+     Le varianti specchiate hanno la sola X ribaltata: servono alla riga che
+     viene girata con `scaleX(-1)`, che altrimenti si porterebbe dietro anche
+     l'ombra. */
+  --ombra-foglio: -10.43px 10.07px 4px rgba(0, 0, 0, 0.4);
+  --ombra-pezzo: -4.9px 4.73px 1.88px rgba(0, 0, 0, 0.4);
+  --ombra-premuta: -4.17px 4.03px 1.6px rgba(0, 0, 0, 0.4);
+  --ombra-pezzo-specchiata: 4.9px 4.73px 1.88px rgba(0, 0, 0, 0.4);
+  --ombra-premuta-specchiata: 4.17px 4.03px 1.6px rgba(0, 0, 0, 0.4);
   /* Un occhiello e le etichette di sezione condividono lo stesso trattamento:
      è la voce già usata dal marchio in «SAPORI SOLARI». */
   --maiuscoletto: 600 10.5px/1 system-ui, -apple-system, sans-serif;
@@ -94,6 +109,11 @@ body {
   position: absolute;
   inset: 0;
   z-index: 2;
+  /* Contenitore di riferimento per la carta del booking, che deve stare dentro
+     l'altezza disponibile. Serve un contenitore e non le unità della finestra
+     perché nell'anteprima da desktop la scena vive in una cornice più piccola:
+     con `dvh` la carta si dimensionerebbe sullo schermo vero e sborderebbe. */
+  container-type: size;
   display: flex;
   /* La carta ha una larghezza massima: qui la si tiene al centro. */
   justify-content: center;
@@ -132,89 +152,229 @@ body {
   box-shadow: var(--ombra-carta);
 }
 
-/* ── Form di prenotazione, a passi ─────────────────────────────────────────
-   Tre fasce: testa fissa, corpo che occupa quel che resta, piede con l'azione
-   sempre nello stesso punto. **Non si scorre mai**: ogni passo sta nella carta,
-   e se un giorno non ci stesse la risposta è dividerlo, non far scorrere.
-   Il pollice trova il bottone dove l'ha lasciato passo dopo passo. */
-.bk {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 10px 18px 18px;
-  gap: 14px;
+/* ── La carta del booking ──────────────────────────────────────────────────
+   Non è un rettangolo CSS come quella del menu: foglio, righe e barra sono
+   sagome di carta ritagliate, e la loro impaginazione arriva da
+   `booking-ui.json` — nel PSD erano già al loro posto. Qui ci sono solo le
+   regole che quel manifest non può contenere: come la carta sta nello schermo,
+   il tipo, e le ombre (che negli asset non ci sono, di proposito).
+
+   **Non si scorre mai.** Vale ancora: un passo aperto occupa la stessa zona
+   delle righe, e se non ci stesse va diviso, non fatto scorrere. */
+.bk-carta {
+  position: relative;
+  /* Centrata nel pannello, che è a schermo pieno. */
+  margin: auto;
+  aspect-ratio: var(--bk-ratio);
+  /* Tre vincoli in una riga: la misura da pollice (una app mobile-first non
+     diventa larga mille pixel solo perché c'è spazio), la larghezza
+     disponibile, e **l'altezza** — quest'ultima è quella che conta davvero,
+     perché la carta è alta 1.41 volte la sua larghezza e su uno schermo corto
+     uscirebbe dallo schermo prima di toccare gli altri due limiti.
+     Le unità sono quelle del contenitore e non della finestra: così la misura
+     resta giusta anche dentro la cornice-anteprima del pannello. */
+  width: min(460px, 100cqw, calc(100cqh * var(--bk-ratio)));
+  /* Le misure del testo qui dentro sono frazioni della carta: rimpicciolendo
+     lei rimpicciolisce tutto insieme, invece di sfondarla. */
+  container-type: inline-size;
+  color: var(--inchiostro);
 }
 
-.bk-testa {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Il foglio è un elemento a parte e non lo sfondo della carta: l'ombra è un
+   `drop-shadow`, che segue la sagoma ritagliata invece del rettangolo — sugli
+   angoli disegnati a mano un `box-shadow` si staccherebbe — e messa qui non
+   cade anche sul testo e sulle righe, che hanno la loro. */
+.bk-foglio {
+  position: absolute;
+  inset: 0;
+  background: var(--bk-foglio) center / 100% 100% no-repeat;
+  filter: drop-shadow(var(--ombra-foglio));
+  pointer-events: none;
 }
 
-.bk-icona {
+/* ── Le tre righe ────────────────────────────────────────────────────────
+   Sono insieme riepilogo e via d'accesso: dicono cosa hai scelto e si aprono
+   sul loro passo. Posizione e larghezza arrivano dal manifest, l'altezza dal
+   rapporto dell'immagine — che è come non stirarla mai. */
+.bk-riga,
+.bk-azione,
+.bk-tasto {
+  position: absolute;
   appearance: none;
-  flex: none;
-  width: 34px;
-  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 120ms ease;
+}
+
+/* La carta del pezzo. Su uno pseudo-elemento perché il `drop-shadow` resti
+   sulla sagoma e non tocchi il testo che ci sta sopra. */
+.bk-riga::before,
+.bk-azione::before,
+.bk-tasto::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bk-pezzo) center / 100% 100% no-repeat;
+  filter: drop-shadow(var(--ombra-pezzo));
+}
+
+.bk-riga { --bk-pezzo: var(--bk-riga); }
+.bk-azione { --bk-pezzo: var(--bk-barra); }
+
+/* Le tre righe sono lo stesso disegno: specchiarne una rompe la ripetizione
+   senza un secondo file. Lo specchio però arriva **dopo** il filtro e ribalta
+   anche l'ombra, che cadrebbe dal lato sbagliato — si vedeva subito, con una
+   riga illuminata da destra e le altre da sinistra. Le si dà l'offset già
+   ribaltato, così dopo lo specchio torna in riga con le altre. */
+.bk-riga[data-specchiata='true']::before {
+  transform: scaleX(-1);
+  filter: drop-shadow(var(--ombra-pezzo-specchiata));
+}
+
+.bk-riga[data-specchiata='true']:active::before {
+  filter: drop-shadow(var(--ombra-premuta-specchiata));
+}
+
+/* Premere un pezzo di carta lo schiaccia contro il foglio: si avvicina di un
+   pelo e la sua ombra si accorcia. */
+.bk-riga:active,
+.bk-azione:not(:disabled):active {
+  transform: translateY(0.8%);
+}
+
+.bk-riga:active::before,
+.bk-azione:not(:disabled):active::before {
+  filter: drop-shadow(var(--ombra-premuta));
+}
+
+/* I due bottoncini d'angolo, sulla stessa piastrella di carta. Chiudere a
+   destra e tornare indietro a sinistra: sono i posti dove si va a cercarli.
+
+   **Storti di proposito**, e di un angolo diverso l'uno dall'altro: due
+   piastrelle inclinate uguale sembrano montate male, due inclinate diverso
+   sembrano posate a mano. È lo stesso motivo per cui il segno sopra è disegnato
+   ad archi e non a rette.
+
+   La rotazione gira anche l'ombra — è la trappola della riga specchiata, qui
+   però l'angolo è di pochi gradi e sposta l'ombra di meno di un pixel: non vale
+   una correzione, vale saperlo.
+
+   La misura non scende sotto i 42 px anche a carta stretta: sotto quella soglia
+   un bersaglio col pollice si sbaglia. */
+.bk-tasto {
+  --bk-pezzo: var(--bk-bottoncino);
+  top: 3.4%;
+  width: clamp(42px, 11cqw, 52px);
   display: grid;
   place-items: center;
-  font-size: 17px;
-  line-height: 1;
-  font-family: inherit;
+  transform: rotate(var(--gira));
+  color: color-mix(in srgb, var(--inchiostro) 70%, transparent);
+}
+
+.bk-chiudi {
+  right: 8.5%;
+  --gira: 4.5deg;
+}
+
+.bk-indietro {
+  left: 8.5%;
+  --gira: -6deg;
+}
+
+.bk-tasto:hover {
   color: var(--inchiostro);
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
 }
 
-.bk-icona:hover {
-  background: color-mix(in srgb, var(--inchiostro) 8%, transparent);
+.bk-tasto:active {
+  transform: rotate(var(--gira)) translateY(4%);
 }
 
-/* Avanzamento: quanti passi ci sono e a che punto si è. Non è decorazione —
-   in un form a tappe la domanda vera è «quanto manca». */
-.bk-avanzamento {
-  flex: 1;
+.bk-tasto:active::before {
+  filter: drop-shadow(var(--ombra-premuta));
+}
+
+/* Posizionato, quindi sta davanti alla piastrella per ordine nell'albero. */
+.bk-tasto svg {
+  position: relative;
+  width: 44%;
+  height: auto;
+}
+
+/* Il contenuto è posizionato anch'esso, così sta davanti allo pseudo-elemento
+   per ordine nell'albero e non serve alzarlo con uno z-index. */
+.bk-riga-corpo {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
-  gap: 5px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  align-items: center;
+  gap: 4%;
+  /* Le estremità della riga sono tonde: il contenuto comincia dopo la curva. */
+  padding: 0 8%;
 }
 
-.bk-avanzamento li {
-  flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--inchiostro) 14%, transparent);
+.bk-riga-icona {
+  flex: none;
+  width: clamp(19px, 6cqw, 28px);
+  height: auto;
+  color: color-mix(in srgb, var(--inchiostro) 72%, transparent);
 }
 
-.bk-avanzamento li[data-fatto='true'] {
-  background: color-mix(in srgb, var(--inchiostro) 40%, transparent);
-}
-
-.bk-avanzamento li[data-corrente='true'] {
-  background: var(--limone);
-}
-
-.bk-nascosto {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.bk-corpo {
-  flex: 1;
-  min-height: 0;
+.bk-riga-testi {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.15em;
+  min-width: 0;
+  text-align: left;
+}
+
+.bk-riga-etichetta {
+  font: var(--maiuscoletto);
+  font-size: clamp(9px, 2.5cqw, 11px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--inchiostro) 50%, transparent);
+}
+
+.bk-riga-valore {
+  font-size: clamp(13px, 3.7cqw, 17px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Quel che non è ancora stato scelto si vede che manca, senza allarmare. */
+.bk-riga[data-vuota='true'] .bk-riga-valore {
+  font-weight: 450;
+  font-style: italic;
+  color: color-mix(in srgb, var(--inchiostro) 42%, transparent);
+}
+
+/* ── La zona di lavoro ───────────────────────────────────────────────────
+   Un passo aperto prende esattamente lo spazio delle tre righe: sono loro a
+   definirne i margini, quindi non c'è un secondo impaginato da tenere
+   allineato al primo. */
+.bk-zona {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 3%;
+  animation: bk-entra 200ms ease both;
+}
+
+@keyframes bk-entra {
+  from {
+    opacity: 0;
+    transform: translateY(2%);
+  }
 }
 
 .bk-occhiello {
@@ -225,9 +385,12 @@ body {
   color: color-mix(in srgb, var(--inchiostro) 50%, transparent);
 }
 
+/* L'unica misura legata alla carta: è la più grande, quindi la prima a
+   stringere quando lo schermo è corto. Le misure dei pickers restano fisse —
+   la carta varia poco (330–460 px) e quei valori sono già tarati. */
 .bk-titolo {
-  margin: -6px 0 2px;
-  font-size: 25px;
+  margin: 0;
+  font-size: clamp(18px, 5.4cqw, 25px);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -352,17 +515,6 @@ body {
   color: color-mix(in srgb, var(--inchiostro) 60%, transparent);
 }
 
-/* Riepilogo di quel che si è già scelto, mentre si lascia il nome: evita di
-   dover tornare indietro per ricontrollare. */
-.bk-recap {
-  margin: 0;
-  padding: 9px 12px;
-  border-radius: 9px;
-  font-size: 13.5px;
-  font-weight: 550;
-  background: color-mix(in srgb, var(--inchiostro) 7%, transparent);
-}
-
 .bk-campo {
   display: flex;
   flex-direction: column;
@@ -392,30 +544,27 @@ body {
   color: color-mix(in srgb, var(--inchiostro) 38%, transparent);
 }
 
-.bk-piede {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.bk-azione {
-  appearance: none;
-  width: 100%;
-  font-family: inherit;
-  font-size: 15.5px;
+/* La barra gialla. È l'unica superficie piena della carta ed è per questo che
+   si vede: il limone qui è un colore, non un accento. */
+.bk-azione-testo {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  /* Nella barra è disegnato un filo orizzontale al 47% e sotto un rametto: il
+     testo vive nella fascia sopra il filo, non al centro del bottone. */
+  top: 4%;
+  height: 42%;
+  display: grid;
+  place-items: center;
+  font-size: clamp(13px, 3.5cqw, 16px);
   font-weight: 600;
-  padding: 14px;
-  border: 0;
-  border-radius: 11px;
-  background: var(--inchiostro);
-  color: var(--carta);
-  cursor: pointer;
+  letter-spacing: -0.01em;
+  color: var(--inchiostro);
 }
 
+/* Spento vuol dire «non ancora», non «vietato»: la carta sbiadisce e basta. */
 .bk-azione:disabled {
-  background: color-mix(in srgb, var(--inchiostro) 26%, transparent);
-  color: color-mix(in srgb, var(--inchiostro) 55%, transparent);
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -426,24 +575,15 @@ body {
   color: color-mix(in srgb, var(--inchiostro) 58%, transparent);
 }
 
-.bk-nota--chiusura {
-  text-align: center;
-}
-
 /* Esito: la carta si svuota e resta solo il fatto compiuto. */
-.bk--esito {
+.bk-esito {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
   gap: 10px;
-}
-
-.bk--esito .bk-titolo {
-  margin: 0;
-}
-
-.bk--esito .bk-azione {
-  margin-top: 14px;
 }
 
 .bk-riepilogo {
@@ -453,8 +593,35 @@ body {
   max-width: 30ch;
 }
 
+/* ── Il menu, ancora segnaposto (backlog §2.1) ───────────────────────────── */
+.menu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px;
+}
+
+.menu-azione {
+  appearance: none;
+  margin-top: 14px;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--inchiostro);
+  color: var(--carta);
+  cursor: pointer;
+}
+
 /* Il focus deve restare visibile su carta chiara senza urlare. */
-.scene-card :focus-visible {
+.scene-card :focus-visible,
+.bk-carta :focus-visible {
   outline: 2px solid var(--inchiostro);
   outline-offset: 2px;
 }
@@ -462,8 +629,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .bk-giorno,
   .bk-ora,
-  .bk-passo-n {
+  .bk-passo-n,
+  .bk-riga,
+  .bk-azione,
+  .bk-tasto {
     transition: none;
+  }
+
+  .bk-zona {
+    animation: none;
   }
 }
 
