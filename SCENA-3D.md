@@ -16,8 +16,9 @@ piatti a profondità diverse, viste con camera **ortografica**. Non è una scena
 3D esplorabile — la profondità nasce dallo sfasamento in parallasse, non dalla
 prospettiva.
 
-Vive su `#/diorama2`. La home è volutamente vuota; `#/diorama` è una versione
-precedente a 5 piani, tenuta funzionante ma superata.
+Vive sulla home: è il sito. La prima versione a 5 piani (`src/components/`,
+`src/scene/`, che stava su `#/diorama`) è stata cancellata — se dovesse servire
+sta nella storia di git, fino al commit che l'ha rimossa.
 
 ---
 

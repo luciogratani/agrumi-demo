@@ -180,7 +180,10 @@ console.log(`\n${layers.length} layer — ${(totalBytes / 1024 / 1024).toFixed(1
 const UI_OUT = path.resolve(process.cwd(), 'public/ui')
 await mkdir(UI_OUT, { recursive: true })
 
-const CTA_SRC = path.resolve(process.cwd(), 'public/assets/el/limone.png')
+// Il limone della CTA viene ancora dagli elementi della prima scena: è l'unico
+// pezzo di quel materiale che serve, e sta fuori da `public/` perché quei PNG
+// non devono finire nella build.
+const CTA_SRC = path.resolve(process.cwd(), 'asset-lavoro/scena-vecchia/el/limone.png')
 const ctaBox = await alphaBBox(CTA_SRC)
 // 512 px bastano: il bottone sta sotto i 200 px CSS, quindi copre anche i
 // display a DPR 3 senza sprecare banda su grana di carta che nessuno vedrà.

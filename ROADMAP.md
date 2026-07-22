@@ -183,7 +183,7 @@ senza ruotare tutta la testa. **Servono asset nuovi.**
 
 ## Dov'eravamo (stato al 19/07/2026)
 
-Hero su route `#/diorama2`; la home è volutamente vuota.
+Hero sulla home; la scena precedente a 5 piani e la sua route sono state rimosse.
 
 - **Pipeline** (`tools/prep-layers.mjs`): 29 livelli PSD a tela piena, ritagliati
   al bounding box e convertiti in WebP con un manifest che ne conserva la
