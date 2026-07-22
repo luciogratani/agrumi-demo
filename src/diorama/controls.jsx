@@ -155,7 +155,7 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
   // di qui come ogni altro valore, invece di essere scritte a mano nel foglio
   // di stile. L'angolo parte uguale a quello delle ombre della scena.
   const paper = useControls('Ombre carta', {
-    angle: { value: 224, min: 0, max: 360, step: 1, label: 'direzione (°)' },
+    angle: { value: 233, min: 0, max: 360, step: 1, label: 'direzione (°)' },
     distance: { value: 14.5, min: 0, max: 60, step: 0.5, label: 'distanza (px)' },
     // Poca: la carta è ritagliata, non stampata, e un'ombra morbida la
     // farebbe galleggiare invece che appoggiare.
@@ -164,7 +164,7 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
     // Righe e barra sono appoggiate **sul** foglio, non sul fondo: stessa luce,
     // ma molto più vicine, quindi ombra corta e netta. Una frazione sola invece
     // di una seconda terna di valori da tenere in accordo con la prima.
-    pieces: { value: 0.47, min: 0, max: 1, step: 0.01, label: 'pezzi · frazione' },
+    pieces: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'pezzi · frazione' },
     // Premendo, il pezzo si schiaccia contro il foglio.
     pressed: { value: 0.4, min: 0, max: 1, step: 0.01, label: 'premuto · frazione' },
     color: { value: '#000000', label: 'colore' },
@@ -196,12 +196,12 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
   const transition = useControls('Transizione', {
     // In altezze di schermo, moltiplicata per la `corsa uscita` del gruppo:
     // ben oltre 1 perché i gruppi lenti (0.65) devono comunque uscire tutti.
-    strength: { value: 1.88, min: 0, max: 3, step: 0.01, label: 'corsa (schermi)' },
+    strength: { value: 2.31, min: 0, max: 3, step: 0.01, label: 'corsa (schermi)' },
     duration: { value: 2, min: 0.2, max: 3, step: 0.05, label: 'durata (s)' },
     // `inOut` perché il diorama parte fermo e arriva fermo: un `out` secco
     // sembra che qualcuno l'abbia spinto, non che stia scorrendo.
     ease: {
-      value: 'power3.inOut',
+      value: 'expo.inOut',
       options: {
         'power2.inOut (morbido)': 'power2.inOut',
         'power3.inOut': 'power3.inOut',
