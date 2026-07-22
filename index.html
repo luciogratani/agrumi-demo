@@ -6,6 +6,22 @@
     <meta name="theme-color" content="#78b2ac" />
     <title>Agrumì</title>
 
+    <!--
+      Icone. Generate da un master unico con `node tools/prep-favicon.mjs`, mai
+      esportate a mano: sono un elenco di misure che i browser pretendono, e
+      rifarle a occhio quando il disegno cambia è il modo di ritrovarsi il gatto
+      vecchio in una scheda e quello nuovo in un'altra.
+
+      Il `.ico` resta perché viene chiesto da solo, senza che nessuno lo
+      dichiari. L'icona Apple è appiattita sul cielo del sito: iOS ignora la
+      trasparenza e comporrebbe su nero.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <link rel="preload" as="image" href="/layers/muro-carta.webp" />
     <link rel="preload" as="image" href="/loader/ramo.webp" />
     <link rel="preload" as="image" href="/loader/gatto.webp" />
