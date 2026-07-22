@@ -30,6 +30,34 @@ I bottoni della transizione restano accanto ai gesti di proposito: servono a
 rivedere lo stesso passaggio molte volte mentre si tarano corsa e durata, cosa
 scomoda a swipe.
 
+## Tarare sul computer, guardare sul telefono
+
+`pnpm dev` e si apre lo stesso indirizzo di rete su entrambi (il server ascolta
+già su tutta la rete locale, `host: true`). Si muove uno slider sul computer e
+**il telefono cambia nello stesso istante**, senza ricaricare.
+
+Non è un pannello per il telefono, ed è voluto. Il problema non è che leva stia
+stretto su uno schermo piccolo: è che **mentre tocchi uno slider il pollice sta
+sopra la cosa che devi giudicare**. Anche un pannello mobile perfetto avrebbe
+quel difetto. Così invece si tara dove c'è spazio e si guarda dove conta — che è
+il telefono, visto che è lì che il sito verrà usato, e i due schermi non si
+somigliano: la carta è larga 460 px su uno e 330 sull'altro, e il vento che sul
+monitor è evidente sul vetro piccolo vale due pixel.
+
+Il canale non è nuovo: è lo stesso WebSocket che Vite tiene aperto con ogni
+browser per il refresh automatico. Il centralino sta in `vite.config.js` e
+rimbalza i valori a tutti; il lato browser è `regia-live.js`. Chi li ha spediti
+li riconosce e li ignora, e il telefono non spedisce mai — senza pannello i suoi
+valori non cambiano da soli.
+
+**Non viaggiano camera, perni e anteprima.** Sono strumenti di regia, non valori
+della scena: l'orbit control sincronizzato vorrebbe dire farsi ruotare la camera
+sotto gli occhi mentre si guarda, e la cornice-telefono su un telefono vero è un
+controsenso.
+
+Tutto questo esiste **solo in sviluppo**: `import.meta.hot` non c'è nella build
+e il codice sparisce insieme a lui (verificato sul bundle).
+
 ## Editor dei perni
 
 Con **modifica perni** attivo si clicca sulla scena nel punto di rotazione del

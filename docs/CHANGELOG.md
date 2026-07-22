@@ -5,6 +5,10 @@ commit. Il perché sta nei documenti di sistema, non qui.
 
 ## 2026-07-22
 
+- **Regia condivisa fra dispositivi**: si tara col pannello sul computer e si
+  guarda sul telefono, dal vivo. Passa dal WebSocket che Vite tiene già aperto
+  per il refresh; camera, perni e anteprima non viaggiano, sono strumenti di
+  regia. Solo in sviluppo.
 - **Booking su carta vera**: foglio, tre righe e barra gialla sono sagome
   ritagliate, impaginate dal manifest. Le tre scelte si vedono tutte insieme al
   posto dei quattro passi con barra di avanzamento, e ogni riga si apre sul suo

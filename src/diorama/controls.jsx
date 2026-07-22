@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Leva, useControls, folder, button } from 'leva'
 import { GROUPS } from './depth'
 import { CAT } from './rig'
+import { useRegiaCondivisa, sovrapponi } from './regia-live'
 
 // Pannello di regia. Tutto ciò che si tara a occhio passa da qui, e il bottone
 // "Esporta JSON" copia lo stato corrente negli appunti così com'è da
@@ -275,17 +276,29 @@ export function useDioramaControls(resetView, rig, transitionActions, introActio
     }),
   })
 
-  latest.current = { parallax, wind, groups, scene, shadow, cat, transition, paper }
+  // Ciò che viaggia fra i dispositivi: i valori **della scena**. Restano fuori
+  // camera, perni e anteprima, che sono strumenti di regia — l'orbit control o
+  // la cornice-telefono non hanno senso sul telefono vero, e sincronizzarli
+  // vorrebbe dire farsi ruotare la camera sotto gli occhi mentre si guarda.
+  const scena = { cat, scene, shadow, paper, parallax, wind, transition, intro, groups }
+  const remoto = useRegiaCondivisa(scena)
+  const vivo = sovrapponi(scena, remoto)
+
+  latest.current = vivo
 
   // Traits risolti per gruppo, nella forma che consumano gli Sprite.
   const traits = Object.fromEntries(
     Object.keys(GROUPS).map((key) => [
       key,
-      { depth: groups[`${key}_depth`], wind: groups[`${key}_wind`], exit: groups[`${key}_exit`] },
+      {
+        depth: vivo.groups[`${key}_depth`],
+        wind: vivo.groups[`${key}_wind`],
+        exit: vivo.groups[`${key}_exit`],
+      },
     ]),
   )
 
-  return { viewport, cat, perni, camera, scene, shadow, paper, parallax, wind, traits, transition, intro }
+  return { viewport, perni, camera, traits, ...vivo }
 }
 
 // Aree visibili reali (CSS px), già al netto dell'interfaccia del browser.

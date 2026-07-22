@@ -10,7 +10,30 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 // giorni, quindi di default si resta su http.
 const https = process.env.HTTPS === '1'
 
+// Regia condivisa fra i dispositivi aperti sullo stesso server.
+//
+// Il pannello di regia sta sul computer — sul telefono non ci starebbe, e
+// soprattutto **mentre tocchi uno slider non stai guardando la scena**: il
+// pollice copre la cosa da giudicare. Quindi si tara sul computer e si guarda
+// sul telefono, dal vivo, mentre si muove il valore.
+//
+// Il canale non è nuovo: è lo stesso WebSocket che Vite tiene aperto con ogni
+// browser per il refresh automatico. Qui il server fa solo da centralino —
+// riceve i valori da chi li muove e li ributta a tutti. Chi li ha mandati li
+// riconosce dal proprio identificativo e li ignora.
+//
+// `apply: 'serve'`: è strumentazione di sviluppo e non esiste nella build.
+function regiaCondivisa() {
+  return {
+    name: 'agrumi-regia-condivisa',
+    apply: 'serve',
+    configureServer(server) {
+      server.ws.on('regia:cambia', (msg) => server.ws.send('regia:applica', msg))
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), ...(https ? [basicSsl()] : [])],
+  plugins: [react(), regiaCondivisa(), ...(https ? [basicSsl()] : [])],
   server: { host: true, port: 5173 },
 })
