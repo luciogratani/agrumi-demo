@@ -48,6 +48,16 @@ gli offset del manifest e salva un PNG. È il modo di controllare l'allineamento
 quando non c'è un browser headless, ed è servito ogni volta che gli asset sono
 cambiati.
 
+## La carta del booking è un secondo binario
+
+`node tools/prep-booking.mjs`, staccato dal primo: ritoccare un bottone non deve
+costare la riconversione dei 29 sprite. Stessa forma degli export (tela piena,
+un livello per pezzo), destinazione diversa — `public/ui/booking/` e non il
+manifest della scena, perché quei pezzi stanno nel DOM sopra il canvas.
+
+Il perché delle percentuali sulla card sta in
+[`interfaccia.md`](interfaccia.md#la-carta-arriva-già-impaginata).
+
 ## Trappole
 
 - le texture stanno in `public/`, il manifest in `src/`: Vite avverte se si
